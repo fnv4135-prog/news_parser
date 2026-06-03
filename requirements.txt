@@ -1,0 +1,22 @@
+# Telegram Bot
+aiogram==3.4.1
+
+# HTTP запросы
+aiohttp==3.9.1
+
+# VK API
+vkbottle==4.3.12
+
+# Telegram парсинг (user account)
+telethon==1.34.0
+
+# Планировщик
+apscheduler==3.10.4
+
+# Окружение
+python-dotenv==1.0.0
+
+# Для парсинга HTML
+beautifulsoup4==4.12.3
+lxml==5.1.0
+feedparser==6.0.11
