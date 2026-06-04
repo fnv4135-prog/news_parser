@@ -12,7 +12,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 
 from database import Database
-from handlers._kb import is_admin
+from config import ADMIN_ID
 
 log = logging.getLogger(__name__)
 router = Router()
@@ -36,7 +36,7 @@ async def _ensure_defaults():
 
 @router.message(Command("stopwords"))
 async def cmd_stopwords(message: Message):
-    if not is_admin(message.from_user.id):
+    if message.from_user.id != ADMIN_ID:
         return
 
     await _ensure_defaults()
@@ -63,7 +63,7 @@ async def cmd_stopwords(message: Message):
 
 @router.message(Command("stopwords_add"))
 async def cmd_stopwords_add(message: Message):
-    if not is_admin(message.from_user.id):
+    if message.from_user.id != ADMIN_ID:
         return
 
     parts = message.text.split(maxsplit=1)
@@ -81,7 +81,7 @@ async def cmd_stopwords_add(message: Message):
 
 @router.message(Command("stopwords_del"))
 async def cmd_stopwords_del(message: Message):
-    if not is_admin(message.from_user.id):
+    if message.from_user.id != ADMIN_ID:
         return
 
     parts = message.text.split(maxsplit=1)
