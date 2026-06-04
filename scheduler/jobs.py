@@ -10,6 +10,7 @@ from database import Database
 from parsers.vk_parser import VKParser
 from parsers.tg_parser import TelegramParser
 from parsers.rss_parser import RSSParser
+from utils.text_cleaner import clean_text
 from bot_instance import get_bot
 
 db = Database()
@@ -45,7 +46,7 @@ async def parse_vk_and_save():
                         source=post.source,
                         source_name=post.author,
                         title=post.title,
-                        text=post.text,
+                        text=clean_text(post.text or ""),
                         url=post.url,
                         author=post.author,
                         image_url=post.image_url,
@@ -86,7 +87,7 @@ async def parse_telegram_and_save():
                         source=post.source,
                         source_name=post.author,
                         title=post.title,
-                        text=post.text,
+                        text=clean_text(post.text or ""),
                         url=post.url,
                         author=post.author,
                         image_url=post.image_url,
@@ -122,7 +123,7 @@ async def parse_rss_and_save():
                         source=post.source,
                         source_name=post.author,
                         title=post.title,
-                        text=post.text,
+                        text=clean_text(post.text or ""),
                         url=post.url,
                         author=post.author,
                         image_url=post.image_url,
