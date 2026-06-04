@@ -107,6 +107,15 @@ class Database:
             )
         ''')
 
+        # Таблица стоп-слов
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS stop_words (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                word TEXT NOT NULL UNIQUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         # Индексы
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_posts_source ON posts(source)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_posts_posted ON posts(is_posted)')
@@ -376,6 +385,56 @@ class Database:
         paths = {row[0] for row in cursor.fetchall()}
         conn.close()
         return paths
+
+    # ------------------------------------------------------------------
+    # Стоп-слова
+    # ------------------------------------------------------------------
+
+    def get_stop_words(self) -> List[str]:
+        """Возвращает список всех стоп-слов."""
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        cursor.execute("SELECT word FROM stop_words ORDER BY word")
+        rows = cursor.fetchall()
+        conn.close()
+        return [r[0] for r in rows]
+
+    def add_stop_word(self, word: str) -> bool:
+        """Добавляет стоп-слово. Возвращает False если уже существует."""
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("INSERT INTO stop_words (word) VALUES (?)", (word.lower().strip(),))
+            conn.commit()
+            return True
+        except Exception:
+            return False
+        finally:
+            conn.close()
+
+    def remove_stop_word(self, word: str) -> bool:
+        """Удаляет стоп-слово. Возвращает False если не найдено."""
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM stop_words WHERE word = ?", (word.lower().strip(),))
+        deleted = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return deleted
+
+    def post_has_stop_words(self, text: str) -> Optional[str]:
+        """
+        Проверяет текст на стоп-слова.
+        Возвращает первое найденное стоп-слово или None.
+        """
+        if not text:
+            return None
+        words = self.get_stop_words()
+        text_lower = text.lower()
+        for word in words:
+            if word in text_lower:
+                return word
+        return None
 
     def vacuum(self):
         """Сжимает БД — освобождает место на диске после удалений."""

@@ -40,6 +40,11 @@ async def parse_vk_and_save():
                 if not post.media_urls and len(post.text or '') > 4096:
                     skipped += 1
                     continue
+                stop_word = db.post_has_stop_words(post.text or '')
+                if stop_word:
+                    log.debug(f"Пост заблокирован стоп-словом '{stop_word}': {post.post_id}")
+                    skipped += 1
+                    continue
                 if not db.post_exists(post.post_id):
                     db.add_post(
                         post_id=post.post_id,
@@ -81,6 +86,11 @@ async def parse_telegram_and_save():
                 if not post.media_urls and len(post.text or '') > 4096:
                     skipped += 1
                     continue
+                stop_word = db.post_has_stop_words(post.text or '')
+                if stop_word:
+                    log.debug(f"Пост заблокирован стоп-словом '{stop_word}': {post.post_id}")
+                    skipped += 1
+                    continue
                 if not db.post_exists(post.post_id):
                     db.add_post(
                         post_id=post.post_id,
@@ -115,6 +125,11 @@ async def parse_rss_and_save():
             posts = await parser.fetch_feed()
             for post in posts:
                 if not post.media_urls and len(post.text or '') > 4096:
+                    skipped += 1
+                    continue
+                stop_word = db.post_has_stop_words(post.text or '')
+                if stop_word:
+                    log.debug(f"Пост заблокирован стоп-словом '{stop_word}': {post.post_id}")
                     skipped += 1
                     continue
                 if not db.post_exists(post.post_id):

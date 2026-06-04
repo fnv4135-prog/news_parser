@@ -35,6 +35,7 @@ dp.include_routers(
     parse_now.router,
     posts.router,
     folders.router,
+    stopwords.router,
 )
 
 async def main():
