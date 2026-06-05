@@ -12,7 +12,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 
 from database import Database
-from config import ADMIN_ID
+from config import ADMIN_IDS
 
 log = logging.getLogger(__name__)
 router = Router()
@@ -36,34 +36,28 @@ async def _ensure_defaults():
 
 @router.message(Command("stopwords"))
 async def cmd_stopwords(message: Message):
-    if message.from_user.id != ADMIN_ID:
+    if message.from_user.id not in ADMIN_IDS:
         return
-
-    await _ensure_defaults()
-    words = db.get_stop_words()
-
-    if not words:
+    try:
+        words = db.get_stop_words()
+        if not words:
+            await message.answer("📋 Стоп-слова: список пуст.\n\nДобавить: /stopwords_add слово")
+            return
+        words_text = "\n".join(f"• {w}" for w in words)
         await message.answer(
-            "📋 <b>Стоп-слова</b>\n\n"
-            "Список пуст.\n\n"
-            "Добавить: <code>/stopwords_add слово</code>",
-            parse_mode="HTML"
+            f"📋 Стоп-слова ({len(words)} шт.):\n\n{words_text}\n\n"
+            f"Добавить: /stopwords_add слово\n"
+            f"Удалить: /stopwords_del слово"
         )
-        return
-
-    words_text = "\n".join(f"• {w}" for w in words)
-    await message.answer(
-        f"📋 <b>Стоп-слова</b> ({len(words)} шт.)\n\n"
-        f"{words_text}\n\n"
-        f"➕ Добавить: <code>/stopwords_add слово</code>\n"
-        f"🗑 Удалить: <code>/stopwords_del слово</code>",
-        parse_mode="HTML"
-    )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"[STOPWORDS] ошибка: {e}")
+        await message.answer(f"❌ Ошибка: {e}")
 
 
 @router.message(Command("stopwords_add"))
 async def cmd_stopwords_add(message: Message):
-    if message.from_user.id != ADMIN_ID:
+    if message.from_user.id not in ADMIN_IDS:
         return
 
     parts = message.text.split(maxsplit=1)
@@ -81,7 +75,7 @@ async def cmd_stopwords_add(message: Message):
 
 @router.message(Command("stopwords_del"))
 async def cmd_stopwords_del(message: Message):
-    if message.from_user.id != ADMIN_ID:
+    if message.from_user.id not in ADMIN_IDS:
         return
 
     parts = message.text.split(maxsplit=1)

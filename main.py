@@ -27,6 +27,7 @@ dp = Dispatcher(storage=storage)
 dp.include_routers(
     start.router,
     help.router,
+    stopwords.router,
     post_edit.router,
     publish_channels.router,
     ad.router,
@@ -35,7 +36,6 @@ dp.include_routers(
     parse_now.router,
     posts.router,
     folders.router,
-    stopwords.router,
 )
 
 async def main():
