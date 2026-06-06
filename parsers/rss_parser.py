@@ -1,3 +1,4 @@
+from config import MAX_POSTS_PER_SOURCE
 import asyncio
 import aiohttp
 import feedparser
@@ -68,7 +69,7 @@ class RSSParser:
                 if feed.bozo:
                     log.warning(f"Feedparser warning: {feed.bozo_exception}")
                 posts = []
-                for entry in feed.entries[:20]:
+                for entry in feed.entries[:MAX_POSTS_PER_SOURCE]:
                     post = await self._entry_to_post(entry)
                     if post:
                         posts.append(post)
