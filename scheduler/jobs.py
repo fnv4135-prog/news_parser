@@ -5,7 +5,7 @@ import time
 from aiogram.types import InputMediaVideo, InputMediaPhoto, FSInputFile
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from config import PARSE_INTERVAL, MAX_POSTS_PER_SOURCE, MEDIA_PATH, MEDIA_PATH_VK
+from config import PARSE_INTERVAL, MAX_POSTS_PER_SOURCE, MEDIA_PATH, MEDIA_PATH_VK, ADMIN_IDS, ADMIN_IDS
 from database import Database
 from parsers.vk_parser import VKParser
 from parsers.tg_parser import TelegramParser
@@ -45,8 +45,9 @@ async def parse_vk_and_save():
                     log.debug(f"Пост заблокирован стоп-словом '{stop_word}': {post.post_id}")
                     skipped += 1
                     continue
+                urgent_word = db.post_has_urgent_words(post.text or '')
                 if not db.post_exists(post.post_id):
-                    db.add_post(
+                    saved_id = db.add_post(
                         post_id=post.post_id,
                         source=post.source,
                         source_name=post.author,
@@ -60,6 +61,8 @@ async def parse_vk_and_save():
                         folder_id=folder_id
                     )
                     new_count += 1
+                    if urgent_word and saved_id:
+                        await notify_urgent_post(saved_id, {'text': post.text, 'folder_id': folder_id}, urgent_word)
         logging.info(f"VK парсинг завершён. Добавлено: {new_count}, пропущено длинных: {skipped}")
 
 async def parse_telegram_and_save():
@@ -91,8 +94,9 @@ async def parse_telegram_and_save():
                     log.debug(f"Пост заблокирован стоп-словом '{stop_word}': {post.post_id}")
                     skipped += 1
                     continue
+                urgent_word = db.post_has_urgent_words(post.text or '')
                 if not db.post_exists(post.post_id):
-                    db.add_post(
+                    saved_id = db.add_post(
                         post_id=post.post_id,
                         source=post.source,
                         source_name=post.author,
@@ -106,6 +110,8 @@ async def parse_telegram_and_save():
                         folder_id=folder_id
                     )
                     new_count += 1
+                    if urgent_word and saved_id:
+                        await notify_urgent_post(saved_id, {'text': post.text, 'folder_id': folder_id}, urgent_word)
         logging.info(f"Telegram парсинг завершён. Добавлено: {new_count}, пропущено длинных: {skipped}")
 
 async def parse_rss_and_save():
@@ -133,7 +139,8 @@ async def parse_rss_and_save():
                     skipped += 1
                     continue
                 if not db.post_exists(post.post_id):
-                    db.add_post(
+                    urgent_word = db.post_has_urgent_words(post.text or '')
+                    saved_id = db.add_post(
                         post_id=post.post_id,
                         source=post.source,
                         source_name=post.author,
@@ -147,6 +154,8 @@ async def parse_rss_and_save():
                         folder_id=folder_id
                     )
                     new_count += 1
+                    if urgent_word and saved_id:
+                        await notify_urgent_post(saved_id, {'text': post.text, 'folder_id': folder_id}, urgent_word)
     logging.info(f"RSS парсинг завершён. Добавлено: {new_count}, пропущено длинных: {skipped}")
 
 def get_photo_input(image_url: str):
@@ -213,6 +222,31 @@ async def _send_scheduled_ad(bot, channel_id, text, media_list_json):
             chat_id=channel_id, text=text,
             parse_mode="HTML", disable_web_page_preview=True
         )
+
+
+async def notify_urgent_post(post_id: int, post: dict, urgent_word: str) -> None:
+    """Отправляет уведомление о срочной новости всем админам."""
+    try:
+        from handlers.urgent import build_urgent_keyboard
+        bot = get_bot()
+        folder = db.get_folder_by_id(post.get('folder_id'))
+        city = folder['name'] if folder else 'Неизвестный город'
+        text = post.get('text') or ''
+        preview = text[:300] + ('...' if len(text) > 300 else '')
+        msg = (
+            f"⚡️ <b>СРОЧНАЯ НОВОСТЬ</b> — {city}\n\n"
+            f"{preview}\n\n"
+            f"🔑 Ключевое слово: <b>{urgent_word}</b>"
+        )
+        kb = build_urgent_keyboard(post_id)
+        for admin_id in ADMIN_IDS:
+            try:
+                await bot.send_message(chat_id=admin_id, text=msg,
+                                       parse_mode="HTML", reply_markup=kb)
+            except Exception as e:
+                log.error(f"[URGENT] Ошибка отправки админу {admin_id}: {e}")
+    except Exception as e:
+        log.error(f"[URGENT] notify_urgent_post: {e}")
 
 
 async def check_scheduled_posts():

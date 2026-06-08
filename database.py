@@ -107,6 +107,15 @@ class Database:
             )
         ''')
 
+        # Таблица срочных ключевых слов
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS urgent_words (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                word TEXT NOT NULL UNIQUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         # Таблица стоп-слов
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS stop_words (
@@ -233,7 +242,7 @@ class Database:
     def add_post(self, post_id: str, source: str, title: str, text: str,
                  url: str, author: str, image_url: str = None,
                  source_name: str = None, published_at: datetime = None,
-                 folder_id: int = None, media_urls: List[str] = None) -> bool:
+                 folder_id: int = None, media_urls: List[str] = None) -> Optional[int]:
         conn = self.get_conn()
         cursor = conn.cursor()
         try:
@@ -252,10 +261,10 @@ class Database:
             ''', (post_id, source, source_name, title, text, url, author, image_url,
                   media_urls_json, published_at, folder_id))
             conn.commit()
-            return cursor.rowcount > 0
+            return cursor.lastrowid if cursor.rowcount > 0 else None
         except Exception as e:
             print(f"Ошибка добавления поста: {e}")
-            return False
+            return None
         finally:
             conn.close()
 
@@ -430,6 +439,50 @@ class Database:
         if not text:
             return None
         words = self.get_stop_words()
+        text_lower = text.lower()
+        for word in words:
+            if word in text_lower:
+                return word
+        return None
+
+    # ------------------------------------------------------------------
+    # Срочные ключевые слова
+    # ------------------------------------------------------------------
+
+    def get_urgent_words(self) -> List[str]:
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        cursor.execute("SELECT word FROM urgent_words ORDER BY word")
+        rows = cursor.fetchall()
+        conn.close()
+        return [r[0] for r in rows]
+
+    def add_urgent_word(self, word: str) -> bool:
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("INSERT INTO urgent_words (word) VALUES (?)", (word.lower().strip(),))
+            conn.commit()
+            return True
+        except Exception:
+            return False
+        finally:
+            conn.close()
+
+    def remove_urgent_word(self, word: str) -> bool:
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM urgent_words WHERE word = ?", (word.lower().strip(),))
+        deleted = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return deleted
+
+    def post_has_urgent_words(self, text: str) -> Optional[str]:
+        """Возвращает первое найденное срочное слово или None."""
+        if not text:
+            return None
+        words = self.get_urgent_words()
         text_lower = text.lower()
         for word in words:
             if word in text_lower:

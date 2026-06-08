@@ -6,7 +6,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from dotenv import load_dotenv
 
-from handlers import start, help, post_edit, publish_channels, ad, sources, schedule, parse_now, posts, folders, stopwords
+from handlers import start, help, post_edit, publish_channels, ad, sources, schedule, parse_now, posts, folders, stopwords, urgent
 from scheduler.jobs import setup_scheduler
 from bot_instance import set_bot
 
@@ -28,6 +28,7 @@ dp.include_routers(
     start.router,
     help.router,
     stopwords.router,
+    urgent.router,
     post_edit.router,
     publish_channels.router,
     ad.router,
