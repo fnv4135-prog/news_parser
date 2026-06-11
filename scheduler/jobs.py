@@ -356,7 +356,7 @@ def vacuum_database():
 
 def setup_scheduler():
     scheduler.add_job(parse_vk_and_save, 'interval', seconds=PARSE_INTERVAL)
-    scheduler.add_job(parse_telegram_and_save, 'interval', seconds=PARSE_INTERVAL)
+    # scheduler.add_job(parse_telegram_and_save, 'interval', seconds=PARSE_INTERVAL)
     scheduler.add_job(parse_rss_and_save, 'interval', seconds=PARSE_INTERVAL)
     scheduler.add_job(check_scheduled_posts, 'interval', seconds=60)  # Проверка каждые 60 сек
     scheduler.add_job(cleanup_old_posts, 'interval', hours=1)  # Очистка раз в час
