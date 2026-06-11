@@ -815,3 +815,115 @@ class Database:
         ''', (post_id, channel_id, message_id))
         conn.commit()
         conn.close()
+    # ==================== АВТОПИЛОТ ====================
+
+    def get_autopilot_settings(self, folder_id: int) -> Optional[Dict]:
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM autopilot_settings WHERE folder_id = ?", (folder_id,))
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            columns = [desc[0] for desc in cursor.description]
+            s = dict(zip(columns, row))
+            s['slots'] = json.loads(s['slots'])
+            return s
+        return None
+
+    def get_all_autopilot_settings(self) -> List[Dict]:
+        """Все города с включённым автопилотом"""
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT a.*, f.name as folder_name
+            FROM autopilot_settings a
+            JOIN folders f ON f.id = a.folder_id
+            WHERE a.is_enabled = 1
+        """)
+        columns = [desc[0] for desc in cursor.description]
+        rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        conn.close()
+        for r in rows:
+            r['slots'] = json.loads(r['slots'])
+        return rows
+
+    def save_autopilot_settings(self, folder_id: int, is_enabled: int = None,
+                                 posts_per_day: int = None, slots: list = None,
+                                 plan_time: str = None, report_time: str = None):
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        # Upsert
+        cursor.execute("SELECT id FROM autopilot_settings WHERE folder_id = ?", (folder_id,))
+        exists = cursor.fetchone()
+        if not exists:
+            cursor.execute("""
+                INSERT INTO autopilot_settings (folder_id, is_enabled, posts_per_day, slots, plan_time, report_time)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                folder_id,
+                is_enabled if is_enabled is not None else 0,
+                posts_per_day if posts_per_day is not None else 6,
+                json.dumps(slots) if slots else '["09:00","12:00","15:00","18:00","20:00","22:00"]',
+                plan_time or '05:00',
+                report_time or '06:00',
+            ))
+        else:
+            fields = []
+            params = []
+            if is_enabled is not None:
+                fields.append("is_enabled = ?"); params.append(is_enabled)
+            if posts_per_day is not None:
+                fields.append("posts_per_day = ?"); params.append(posts_per_day)
+            if slots is not None:
+                fields.append("slots = ?"); params.append(json.dumps(slots))
+            if plan_time is not None:
+                fields.append("plan_time = ?"); params.append(plan_time)
+            if report_time is not None:
+                fields.append("report_time = ?"); params.append(report_time)
+            if fields:
+                fields.append("updated_at = CURRENT_TIMESTAMP")
+                params.append(folder_id)
+                cursor.execute(
+                    f"UPDATE autopilot_settings SET {', '.join(fields)} WHERE folder_id = ?",
+                    params
+                )
+        conn.commit()
+        conn.close()
+
+    def get_posts_for_autopilot(self, folder_id: int, limit: int = 50) -> List[Dict]:
+        """
+        Посты для автопилота:
+        - не опубликованы (is_posted = 0)
+        - не стоят в расписании
+        - свежие (по parsed_at DESC)
+        """
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT p.* FROM posts p
+            WHERE p.folder_id = ?
+              AND p.is_posted = 0
+              AND p.id NOT IN (
+                  SELECT post_id FROM scheduled_posts
+                  WHERE status = 'pending' AND post_id IS NOT NULL
+              )
+            ORDER BY p.parsed_at DESC
+            LIMIT ?
+        """, (folder_id, limit))
+        columns = [desc[0] for desc in cursor.description]
+        posts = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        conn.close()
+        return posts
+
+    def get_scheduled_slots_today(self, folder_id: int) -> List[str]:
+        """Уже занятые слоты сегодня для города (формат HH:MM)"""
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT scheduled_at FROM scheduled_posts
+            WHERE folder_id = ? AND status = 'pending'
+              AND date(scheduled_at) = date('now')
+        """, (folder_id,))
+        rows = cursor.fetchall()
+        conn.close()
+        return [row[0][11:16] for row in rows if row[0]]

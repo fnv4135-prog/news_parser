@@ -12,6 +12,7 @@ from parsers.tg_parser import TelegramParser
 from parsers.rss_parser import RSSParser
 from utils.text_cleaner import clean_text
 from bot_instance import get_bot
+from scheduler.autopilot_jobs import run_autopilot_planner, run_autopilot_reporter
 
 db = Database()
 scheduler = AsyncIOScheduler()
@@ -359,5 +360,7 @@ def setup_scheduler():
     scheduler.add_job(parse_rss_and_save, 'interval', seconds=PARSE_INTERVAL)
     scheduler.add_job(check_scheduled_posts, 'interval', seconds=60)  # Проверка каждые 60 сек
     scheduler.add_job(cleanup_old_posts, 'interval', hours=1)  # Очистка раз в час
-    scheduler.add_job(vacuum_database, 'cron', day_of_week='sun', hour=4)  # VACUUM каждое воскресенье в 4:00
+    scheduler.add_job(vacuum_database, 'cron', day_of_week='sun', hour=4)
+    scheduler.add_job(run_autopilot_planner, 'interval', minutes=1)
+    scheduler.add_job(run_autopilot_reporter, 'interval', minutes=1)
     scheduler.start()
