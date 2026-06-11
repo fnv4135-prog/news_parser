@@ -266,3 +266,129 @@ async def ap_reporttime_set(callback: CallbackQuery, state: FSMContext):
     text, kb = build_city_menu(folder_id, folder['name'])
     await callback.message.edit_text(text, reply_markup=kb)
     await callback.answer("✅ Сохранено")
+
+
+# ==================== ПРОСМОТР ПЛАНА ====================
+
+def build_review_keyboard(folder_id: int, index: int, total: int, scheduled_id: int):
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✏️ Редактировать", callback_data=f"ap_edit|{scheduled_id}")
+    builder.button(text="🔄 Заменить", callback_data=f"ap_replace|{folder_id}|{scheduled_id}|{index}")
+    if index + 1 < total:
+        builder.button(text=f"Следующий ({index + 2}/{total}) ➡️", callback_data=f"ap_review|{folder_id}|{index + 1}")
+    else:
+        builder.button(text="✅ Готово", callback_data=f"ap_confirm|{folder_id}")
+    builder.button(text="❌ Закрыть", callback_data="ap_close")
+    builder.adjust(2, 1, 1)
+    return builder.as_markup()
+
+
+@router.callback_query(F.data.startswith("ap_review|"))
+async def ap_review(callback: CallbackQuery):
+    parts = callback.data.split("|")
+    folder_id = int(parts[1])
+    index = int(parts[2])
+
+    folder = db.get_folder_by_id(folder_id)
+    folder_name = folder['name'] if folder else f"Город #{folder_id}"
+
+    scheduled = db.get_scheduled_by_folder(folder_id)
+    if not scheduled:
+        await callback.message.edit_text(f"📭 {folder_name} — нет запланированных постов.")
+        await callback.answer()
+        return
+
+    total = len(scheduled)
+    if index >= total:
+        index = total - 1
+
+    sch = scheduled[index]
+    sched_time = sch['scheduled_at']
+    if isinstance(sched_time, str):
+        from datetime import datetime, timedelta
+        sched_time = datetime.strptime(sched_time[:16], "%Y-%m-%d %H:%M")
+    from datetime import timedelta
+    sched_msk = sched_time + timedelta(hours=3)
+    time_str = sched_msk.strftime("%H:%M")
+
+    text_preview = (sch['text'] or '')[:300]
+
+    text = (
+        f"📋 {folder_name} — пост {index + 1}/{total}\n"
+        f"🕐 Слот: {time_str}\n\n"
+        f"{text_preview}"
+        f"{'...' if len(sch['text'] or '') > 300 else ''}"
+    )
+
+    await callback.message.edit_text(
+        text,
+        reply_markup=build_review_keyboard(folder_id, index, total, sch['id'])
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("ap_confirm|"))
+async def ap_confirm(callback: CallbackQuery):
+    folder_id = int(callback.data.split("|")[1])
+    folder = db.get_folder_by_id(folder_id)
+    folder_name = folder['name'] if folder else f"Город #{folder_id}"
+
+    scheduled = db.get_scheduled_by_folder(folder_id)
+    await callback.message.edit_text(
+        f"✅ {folder_name} — план запущен!\n"
+        f"Запланировано постов: {len(scheduled)}"
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("ap_replace|"))
+async def ap_replace(callback: CallbackQuery):
+    parts = callback.data.split("|")
+    folder_id = int(parts[1])
+    scheduled_id = int(parts[2])
+    index = int(parts[3])
+
+    # Получаем текущий scheduled пост
+    current = db.get_scheduled_by_id(scheduled_id)
+    if not current:
+        await callback.answer("Пост не найден", show_alert=True)
+        return
+
+    # Ищем замену — пост не в расписании и не тот же
+    candidates = db.get_posts_for_autopilot(folder_id, limit=20)
+    replacement = None
+    for c in candidates:
+        if c['id'] != current.get('post_id'):
+            replacement = c
+            break
+
+    if not replacement:
+        await callback.answer("⚠️ Нет подходящих постов для замены", show_alert=True)
+        return
+
+    # Обновляем scheduled_post
+    conn = db.get_conn()
+    cur = conn.cursor()
+    cur.execute("""
+        UPDATE scheduled_posts
+        SET post_id = ?, text = ?, image_url = ?, media_list = ?
+        WHERE id = ?
+    """, (
+        replacement['id'],
+        replacement.get('text'),
+        replacement.get('image_url'),
+        replacement.get('media_urls'),
+        scheduled_id
+    ))
+    conn.commit()
+    conn.close()
+
+    await callback.answer("✅ Пост заменён")
+
+    # Показываем обновлённый пост
+    await ap_review(callback.__class__(
+        update=callback.update,
+        bot=callback.bot,
+        **{**callback.__dict__,
+           'data': f"ap_review|{folder_id}|{index}"}
+    ))
