@@ -40,7 +40,7 @@ class TelegramParser:
     """Парсер Telegram каналов через user account с поддержкой скачивания фото"""
 
     def __init__(self, api_id: int, api_hash: str, phone: str, 
-                 session_name: str = "parser_session",
+                 session_name: str = "/root/bots/news_parser/parser_session",
                  media_path: str = "media/telegram"):
         self.api_id = api_id
         self.api_hash = api_hash
