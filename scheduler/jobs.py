@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import random
+import functools
 import os
 import time
 
@@ -43,14 +44,15 @@ async def parse_vk_and_save():
                 if not post.media_urls and len(post.text or '') > 4096:
                     skipped += 1
                     continue
-                stop_word = db.post_has_stop_words(post.text or '')
+                stop_word = await db.run_async(db.post_has_stop_words, post.text or '')
                 if stop_word:
                     log.debug(f"Пост заблокирован стоп-словом '{stop_word}': {post.post_id}")
                     skipped += 1
                     continue
-                urgent_word = db.post_has_urgent_words(post.text or '')
-                if not db.post_exists(post.post_id):
-                    saved_id = db.add_post(
+                urgent_word = await db.run_async(db.post_has_urgent_words, post.text or '')
+                if not await db.run_async(db.post_exists, post.post_id):
+                    saved_id = await db.run_async(functools.partial(
+                        db.add_post,
                         post_id=post.post_id,
                         source=post.source,
                         source_name=post.author,
@@ -62,7 +64,7 @@ async def parse_vk_and_save():
                         media_urls=post.media_urls,
                         published_at=post.published_at,
                         folder_id=folder_id
-                    )
+                    ))
                     new_count += 1
                     if urgent_word and saved_id:
                         await notify_urgent_post(saved_id, {'text': post.text, 'folder_id': folder_id}, urgent_word)
@@ -93,14 +95,15 @@ async def parse_telegram_and_save():
                 if not post.media_urls and len(post.text or '') > 4096:
                     skipped += 1
                     continue
-                stop_word = db.post_has_stop_words(post.text or '')
+                stop_word = await db.run_async(db.post_has_stop_words, post.text or '')
                 if stop_word:
                     log.debug(f"Пост заблокирован стоп-словом '{stop_word}': {post.post_id}")
                     skipped += 1
                     continue
-                urgent_word = db.post_has_urgent_words(post.text or '')
-                if not db.post_exists(post.post_id):
-                    saved_id = db.add_post(
+                urgent_word = await db.run_async(db.post_has_urgent_words, post.text or '')
+                if not await db.run_async(db.post_exists, post.post_id):
+                    saved_id = await db.run_async(functools.partial(
+                        db.add_post,
                         post_id=post.post_id,
                         source=post.source,
                         source_name=post.author,
@@ -112,7 +115,7 @@ async def parse_telegram_and_save():
                         media_urls=post.media_urls,
                         published_at=post.published_at,
                         folder_id=folder_id
-                    )
+                    ))
                     new_count += 1
                     if urgent_word and saved_id:
                         await notify_urgent_post(saved_id, {'text': post.text, 'folder_id': folder_id}, urgent_word)
@@ -137,14 +140,15 @@ async def parse_rss_and_save():
                 if not post.media_urls and len(post.text or '') > 4096:
                     skipped += 1
                     continue
-                stop_word = db.post_has_stop_words(post.text or '')
+                stop_word = await db.run_async(db.post_has_stop_words, post.text or '')
                 if stop_word:
                     log.debug(f"Пост заблокирован стоп-словом '{stop_word}': {post.post_id}")
                     skipped += 1
                     continue
-                if not db.post_exists(post.post_id):
-                    urgent_word = db.post_has_urgent_words(post.text or '')
-                    saved_id = db.add_post(
+                if not await db.run_async(db.post_exists, post.post_id):
+                    urgent_word = await db.run_async(db.post_has_urgent_words, post.text or '')
+                    saved_id = await db.run_async(functools.partial(
+                        db.add_post,
                         post_id=post.post_id,
                         source=post.source,
                         source_name=post.author,
@@ -156,7 +160,7 @@ async def parse_rss_and_save():
                         media_urls=post.media_urls,
                         published_at=post.published_at,
                         folder_id=folder_id
-                    )
+                    ))
                     new_count += 1
                     if urgent_word and saved_id:
                         await notify_urgent_post(saved_id, {'text': post.text, 'folder_id': folder_id}, urgent_word)

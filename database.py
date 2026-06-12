@@ -14,6 +14,11 @@ class Database:
     def get_conn(self):
         return sqlite3.connect(self.db_path, timeout=30)
 
+    async def run_async(self, func, *args):
+        import asyncio
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, func, *args)
+
     def init_db(self):
         """Создаём таблицы и выполняем миграции"""
         conn = self.get_conn()
