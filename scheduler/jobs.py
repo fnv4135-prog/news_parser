@@ -1,4 +1,6 @@
 import logging
+import asyncio
+import random
 import os
 import time
 
@@ -83,6 +85,7 @@ async def parse_telegram_and_save():
         new_count = 0
         skipped = 0
         for src in tg_sources:
+            await asyncio.sleep(random.uniform(1, 3))
             channel = src['value']
             folder_id = src['folder_id']
             posts = await parser.get_channel_posts(channel, limit=MAX_POSTS_PER_SOURCE)
