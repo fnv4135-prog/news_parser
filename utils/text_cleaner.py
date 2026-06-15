@@ -11,7 +11,7 @@ from typing import List
 # ---------------------------------------------------------------------------
 
 _RE_URL = re.compile(
-    r'https?://\S+|t\.me/\S+|vk\.com/\S+|vk\.ru/\S+|max\.ru/\S+|dzen\.ru/\S+',
+    r'https?://\S+|t\.me/\S+|vk\.com/\S+|vk\.ru/\S+|vk\.cc/\S+|max\.ru/\S+|dzen\.ru/\S+',
     re.IGNORECASE
 )
 
@@ -25,7 +25,7 @@ _SIGNATURE_PHRASES = [
     r'подписаться', r'подписывайтесь',
     r'поделиться новостью',
     r'читать далее', r'читать полностью',
-    r'наш канал', r'наш сайт',
+    r'наш канал', r'наш сайт', r'главный канал', r'без цензуры',
     r'присоединяйтесь', r'переходите',
 ]
 _RE_SIGNATURE = re.compile('|'.join(_SIGNATURE_PHRASES), re.IGNORECASE)
