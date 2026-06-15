@@ -31,7 +31,7 @@ def build_city_keyboard():
             callback_data=f"ap_city|{f['id']}"
         )
     builder.button(text="❌ Закрыть", callback_data="ap_close")
-    builder.adjust(1)
+    builder.adjust(2)
     return builder.as_markup()
 
 
