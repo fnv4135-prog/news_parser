@@ -115,6 +115,9 @@ def clean_text(text: str) -> str:
     if not text:
         return text
 
+    # Убираем Markdown bold/italic
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    text = re.sub(r'__(.+?)__', r'\1', text)
     lines = text.split('\n')
     cleaned: List[str] = []
 
