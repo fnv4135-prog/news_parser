@@ -18,6 +18,14 @@ class Database:
         import asyncio
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, func, *args)
+    def update_post_image(self, post_id: int, image_url: str):
+        """Обновляет путь к изображению поста."""
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE posts SET image_url = ? WHERE id = ?", (image_url, post_id))
+        conn.commit()
+        conn.close()
+
 
     def init_db(self):
         """Создаём таблицы и выполняем миграции"""

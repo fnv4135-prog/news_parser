@@ -70,11 +70,12 @@ def _extract_post_id(callback_data: str) -> int:
     return int(parts[-1])
 
 
-def _preview_kb(post_id: int) -> InlineKeyboardMarkup:
+def _preview_kb(post_id: int, has_image: bool = False) -> InlineKeyboardMarkup:
     """Кнопки предпросмотра поста"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="✏️ Редактировать текст", callback_data=f"edit_post_text|{post_id}")],
         [InlineKeyboardButton(text="🖼 Заменить фото/видео", callback_data=f"replace_photo|{post_id}")],
+        *([[InlineKeyboardButton(text="🪄 Убрать водяной знак", callback_data=f"remove_watermark|{post_id}")]] if has_image else []),
         [InlineKeyboardButton(text="📢 Выбрать город для публикации", callback_data=f"choose_publish_city|{post_id}")],
         [InlineKeyboardButton(text="◀ К списку", callback_data="back_to_posts_list")],
         [InlineKeyboardButton(text="❌ Отмена", callback_data=f"cancel_publish|{post_id}")]
@@ -443,7 +444,7 @@ async def select_post(callback: CallbackQuery):
     elif len(media_urls) == 1:
         media_info = " · 🖼 фото"
     
-    kb = _preview_kb(post['id'])
+    kb = _preview_kb(post['id'], has_image=bool(media_urls) or bool(post.get('image_url')))
     sent_text = await callback.message.answer(
         f"📝 <b>Предпросмотр поста</b> [{source_icon}{media_info}]{info_line}\n\n{preview_text}\n\n"
         f"Выберите действие:",
@@ -586,7 +587,7 @@ async def done_replace_media(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         f"📝 <b>Медиа обновлено!</b> ({info})\n\n{preview_text}\n\nВыберите действие:",
         parse_mode="HTML",
-        reply_markup=_preview_kb(post['id'])
+        reply_markup=_preview_kb(post['id'], has_image=bool(post.get('image_url') or post.get('media_urls')))
     )
     await callback.answer()
 
@@ -606,7 +607,7 @@ async def cancel_replace_photo(callback: CallbackQuery, state: FSMContext):
             f"📝 <b>Предпросмотр поста</b>\n\n{preview_text}\n\n"
             f"Выберите действие:",
             parse_mode="HTML",
-            reply_markup=_preview_kb(post['id'])
+            reply_markup=_preview_kb(post['id'], has_image=bool(post.get('image_url') or post.get('media_urls')))
         )
     else:
         await callback.message.edit_text("❌ Замена фото отменена.")
@@ -952,6 +953,37 @@ async def restart_posts(callback: CallbackQuery):
 # ----------------------------------------------------------------------
 # Ловушки для старых кнопок (без |post_id) — от сообщений до обновления
 # ----------------------------------------------------------------------
+
+@router.callback_query(F.data.startswith("remove_watermark|"))
+async def remove_watermark_handler(callback: CallbackQuery):
+    """Удаляет водяной знак с фото поста."""
+    from utils.watermark_remover import remove_watermark
+    post_id = int(callback.data.split("|")[1])
+    user_id = callback.from_user.id
+    post = user_current_post.get(user_id)
+    if not post:
+        await callback.answer("❌ Пост не найден.", show_alert=True)
+        return
+    image_path = post.get('image_url')
+    if not image_path:
+        await callback.answer("❌ У поста нет фото.", show_alert=True)
+        return
+    await callback.answer("⏳ Обрабатываю...")
+    result = await remove_watermark(image_path)
+    if not result:
+        await callback.message.answer("❌ Не удалось убрать водяной знак. Попробуйте позже.")
+        return
+    if result == image_path:
+        await callback.message.answer("ℹ️ Водяной знак не обнаружен на фото.")
+        return
+    # Обновляем путь в посте
+    post['image_url'] = result
+    user_current_post[user_id] = post
+    db.update_post_image(post_id, result)
+    await callback.message.answer(
+        "✅ Водяной знак убран! Фото обновлено.",
+    )
+
 _OLD_CALLBACKS = {
     "publish_now", "schedule_post", "edit_post_text", "replace_photo",
     "choose_publish_city", "cancel_publish", "edit_post_signature",
