@@ -980,8 +980,10 @@ async def remove_watermark_handler(callback: CallbackQuery):
     post['image_url'] = result
     user_current_post[user_id] = post
     db.update_post_image(post_id, result)
-    await callback.message.answer(
-        "✅ Водяной знак убран! Фото обновлено.",
+    from aiogram.types import FSInputFile
+    await callback.message.answer_photo(
+        FSInputFile(result),
+        caption="✅ Водяной знак убран! Фото обновлено. Проверьте качество.",
     )
 
 _OLD_CALLBACKS = {
