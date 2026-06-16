@@ -908,8 +908,11 @@ async def cancel_publish(callback: CallbackQuery):
     user_edited_text.pop(user_id, None)
     user_schedule_data.pop(user_id, None)
     user_selected_folder_for_publish.pop(user_id, None)
-    await callback.message.edit_text("❌ Публикация отменена.")
-    await callback.answer()
+    await callback.answer("❌ Публикация отменена.")
+    # Возвращаем на текущую страницу
+    page = user_pages.get(user_id, 0)
+    text, markup = await get_posts_page_text_and_markup(user_id, page)
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=markup)
 
 @router.callback_query(F.data == "cancel_posts")
 async def cancel_posts(callback: CallbackQuery):
