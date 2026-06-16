@@ -69,18 +69,24 @@ async def remove_watermark(image_path: str) -> str | None:
     Удаляет водяной знак с изображения.
     Возвращает путь к обработанному файлу или None при ошибке.
     """
+    import logging
+    log = logging.getLogger(__name__)
+    log.info(f"[WATERMARK] Начало обработки: {image_path}")
+
     path = Path(image_path)
     if not path.exists():
+        log.warning(f"[WATERMARK] Файл не найден: {image_path}")
         return None
 
     img = cv2.imread(str(path))
     if img is None:
+        log.warning(f"[WATERMARK] Не удалось прочитать изображение: {image_path}")
         return None
 
     mask = _detect_watermark_mask(img)
 
     if mask.max() == 0:
-        # Водяной знак не найден — возвращаем оригинал
+        log.info(f"[WATERMARK] Водяной знак не обнаружен: {image_path}")
         return image_path
 
     # Кодируем в base64
@@ -89,6 +95,7 @@ async def remove_watermark(image_path: str) -> str | None:
     img_b64 = base64.b64encode(img_encoded.tobytes()).decode()
     mask_b64 = base64.b64encode(mask_encoded.tobytes()).decode()
 
+    log.info(f"[WATERMARK] Маска найдена, отправляем в IOPaint...")
     try:
         async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.post(IOPAINT_URL, json={
@@ -97,13 +104,12 @@ async def remove_watermark(image_path: str) -> str | None:
             })
             resp.raise_for_status()
 
-        # Сохраняем результат
-        result_bytes = base64.b64decode(resp.content)
+        result_bytes = resp.content
         out_path = path.with_stem(path.stem + "_clean")
         out_path.write_bytes(result_bytes)
+        log.info(f"[WATERMARK] Готово: {out_path}")
         return str(out_path)
 
     except Exception as e:
-        import logging
-        logging.error(f"[WATERMARK] Ошибка IOPaint: {e}")
+        log.error(f"[WATERMARK] Ошибка IOPaint: {e}")
         return None
