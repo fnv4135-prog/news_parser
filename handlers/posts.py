@@ -77,7 +77,7 @@ def _preview_kb(post_id: int, has_image: bool = False) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="🖼 Заменить фото/видео", callback_data=f"replace_photo|{post_id}")],
         *([[InlineKeyboardButton(text="🪄 Убрать водяной знак", callback_data=f"remove_watermark|{post_id}")]] if has_image else []),
         [InlineKeyboardButton(text="📢 Выбрать город для публикации", callback_data=f"choose_publish_city|{post_id}")],
-        [InlineKeyboardButton(text="◀ К списку", callback_data="back_to_posts_list")],
+        [InlineKeyboardButton(text="◀ К списку", callback_data="back_to_posts_list"), InlineKeyboardButton(text="➡️ Следующий", callback_data=f"next_post|{post_id}")],
         [InlineKeyboardButton(text="❌ Отмена", callback_data=f"cancel_publish|{post_id}")]
     ])
 
@@ -903,6 +903,7 @@ async def cancel_publish(callback: CallbackQuery):
     bot = get_bot()
     await _cleanup_all(bot, callback.message.chat.id, user_id,
                        except_msg_id=callback.message.message_id)
+    page = user_pages.get(user_id, 0)
     user_current_post.pop(user_id, None)
     user_selected_channels.pop(user_id, None)
     user_edited_text.pop(user_id, None)
@@ -910,7 +911,6 @@ async def cancel_publish(callback: CallbackQuery):
     user_selected_folder_for_publish.pop(user_id, None)
     await callback.answer("❌ Публикация отменена.")
     # Возвращаем на текущую страницу
-    page = user_pages.get(user_id, 0)
     text, markup = await get_posts_page_text_and_markup(user_id, page)
     await callback.message.edit_text(text, parse_mode="HTML", reply_markup=markup)
 
@@ -988,6 +988,37 @@ async def remove_watermark_handler(callback: CallbackQuery):
         FSInputFile(result),
         caption="✅ Водяной знак убран! Фото обновлено. Проверьте качество.",
     )
+
+
+@router.callback_query(F.data.startswith("next_post|"))
+async def next_post_handler(callback: CallbackQuery):
+    """Переход к следующему посту без возврата к списку."""
+    user_id = callback.from_user.id
+    page = user_pages.get(user_id, 0)
+    next_page = page + 1
+    posts = user_posts_cache.get(user_id, [])
+    if not posts:
+        await callback.answer("⚠️ Кэш постов пуст. Нажмите /posts заново.", show_alert=True)
+        return
+    # Считаем сколько постов на странице (из get_posts_page_text_and_markup)
+    POSTS_PER_PAGE = 10
+    start = next_page * POSTS_PER_PAGE
+    if start >= len(posts):
+        await callback.answer("✅ Это последний пост.", show_alert=True)
+        return
+    user_pages[user_id] = next_page
+    # Очищаем текущий превью
+    bot = get_bot()
+    await _cleanup_all(bot, callback.message.chat.id, user_id,
+                       except_msg_id=callback.message.message_id)
+    user_current_post.pop(user_id, None)
+    user_selected_channels.pop(user_id, None)
+    user_edited_text.pop(user_id, None)
+    user_schedule_data.pop(user_id, None)
+    # Показываем список следующей страницы
+    text, markup = await get_posts_page_text_and_markup(user_id, next_page)
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=markup)
+    await callback.answer()
 
 _OLD_CALLBACKS = {
     "publish_now", "schedule_post", "edit_post_text", "replace_photo",
