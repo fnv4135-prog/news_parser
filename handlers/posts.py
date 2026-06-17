@@ -973,26 +973,21 @@ async def remove_watermark_handler(callback: CallbackQuery):
     if not image_path:
         await callback.answer("❌ У поста нет фото.", show_alert=True)
         return
-    await callback.answer("⏳ Обрабатываю...")
-    result = await remove_watermark(image_path)
-    if not result:
-        await callback.message.answer("❌ Не удалось убрать водяной знак. Попробуйте позже.")
-        return
-    if result == image_path:
-        await callback.message.answer("ℹ️ Водяной знак не обнаружен на фото.")
-        return
-    from aiogram.types import FSInputFile
-    user_wm_result[post_id] = image_path  # сохраняем оригинальный путь для обработки
+    user_wm_result[post_id] = image_path
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="✅ Использовать", callback_data=f"wm_apply|{post_id}"),
-            InlineKeyboardButton(text="❌ Отменить", callback_data=f"wm_cancel|{post_id}"),
-        ]
+            InlineKeyboardButton(text="↖", callback_data=f"wm_zone|{post_id}|tl"),
+            InlineKeyboardButton(text="↗", callback_data=f"wm_zone|{post_id}|tr"),
+        ],
+        [
+            InlineKeyboardButton(text="↙", callback_data=f"wm_zone|{post_id}|bl"),
+            InlineKeyboardButton(text="↘", callback_data=f"wm_zone|{post_id}|br"),
+        ],
+        [InlineKeyboardButton(text="🎯 Центр", callback_data=f"wm_zone|{post_id}|center")],
+        [InlineKeyboardButton(text="❌ Отменить", callback_data=f"wm_cancel|{post_id}")],
     ])
-    await callback.message.answer_photo(
-        FSInputFile(result),
-        caption="🪄 Результат обработки. Использовать это фото?",
-        reply_markup=kb
+    await callback.answer()
+    await callback.message.answer("🪄 Где находится водяной знак?", reply_markup=kb)
     )
 
 
