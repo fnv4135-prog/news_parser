@@ -982,9 +982,10 @@ async def remove_watermark_handler(callback: CallbackQuery):
         await callback.message.answer("ℹ️ Водяной знак не обнаружен на фото.")
         return
     from aiogram.types import FSInputFile
+    user_wm_result[post_id] = result
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="✅ Использовать", callback_data=f"wm_apply|{post_id}|{result}"),
+            InlineKeyboardButton(text="✅ Использовать", callback_data=f"wm_apply|{post_id}"),
             InlineKeyboardButton(text="❌ Отменить", callback_data=f"wm_cancel|{post_id}"),
         ]
     ])
@@ -1031,10 +1032,10 @@ async def wm_apply_handler(callback: CallbackQuery):
     """Применяет обработанное фото."""
     parts = callback.data.split("|")
     post_id = int(parts[1])
-    result_path = parts[2]
+    result_path = user_wm_result.pop(post_id, None)
     user_id = callback.from_user.id
     post = user_current_post.get(user_id)
-    if post:
+    if post and result_path:
         post['image_url'] = result_path
         user_current_post[user_id] = post
         db.update_post_image(post_id, result_path)
