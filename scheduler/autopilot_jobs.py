@@ -45,9 +45,8 @@ def _slots_to_datetimes(slots: List[str], now_utc: datetime) -> List[datetime]:
     result = []
     for slot in slots:
         h, m = map(int, slot.split(":"))
-        # МСК → UTC
-        dt_msk = now_utc.replace(hour=h, minute=m, second=0, microsecond=0) + timedelta(hours=3)
-        dt_utc = dt_msk - timedelta(hours=3)
+        # Слот в МСК (UTC+3) → UTC
+        dt_utc = now_utc.replace(hour=h, minute=m, second=0, microsecond=0) - timedelta(hours=3)
         # Корректируем дату если слот уже прошёл — ставим на завтра
         if dt_utc <= now_utc:
             dt_utc += timedelta(days=1)
