@@ -967,7 +967,9 @@ async def remove_watermark_handler(callback: CallbackQuery):
     if not post:
         await callback.answer("❌ Пост не найден.", show_alert=True)
         return
-    image_path = post.get('image_url')
+    from utils.post_sender import get_media_urls
+    media_urls = get_media_urls(post)
+    image_path = media_urls[0] if media_urls else None
     if not image_path:
         await callback.answer("❌ У поста нет фото.", show_alert=True)
         return
