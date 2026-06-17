@@ -32,10 +32,24 @@ async def parse_vk_and_save():
     if not vk_sources:
         logging.info("Нет VK источников для парсинга")
         return
+    # Round-robin по городам, макс 20 на город
+    from collections import defaultdict
+    buckets = defaultdict(list)
+    for s in vk_sources:
+        buckets[s['folder_id']].append(s)
+    rr_sources = []
+    max_len = min(max((len(v) for v in buckets.values()), default=0), 20)
+    for i in range(max_len):
+        for folder_id in buckets:
+            if i < len(buckets[folder_id]):
+                rr_sources.append(buckets[folder_id][i])
+    vk_sources = rr_sources
+
     async with VKParser(token, media_path=MEDIA_PATH_VK) as parser:
         new_count = 0
         skipped = 0
         for src in vk_sources:
+            await asyncio.sleep(random.uniform(3, 5))
             group_id = src['value']
             folder_id = src['folder_id']
             posts = await parser.get_wall_posts(group_id, count=MAX_POSTS_PER_SOURCE)
@@ -87,7 +101,7 @@ async def parse_telegram_and_save():
         new_count = 0
         skipped = 0
         for src in tg_sources:
-            await asyncio.sleep(random.uniform(1, 3))
+            await asyncio.sleep(random.uniform(3, 5))
             channel = src['value']
             folder_id = src['folder_id']
             posts = await parser.get_channel_posts(channel, limit=MAX_POSTS_PER_SOURCE)
@@ -363,7 +377,7 @@ def vacuum_database():
 
 def setup_scheduler():
     scheduler.add_job(parse_vk_and_save, 'interval', seconds=PARSE_INTERVAL, max_instances=1)
-    scheduler.add_job(parse_telegram_and_save, 'interval', seconds=PARSE_INTERVAL, max_instances=1)
+    # scheduler.add_job(parse_telegram_and_save, 'interval', seconds=PARSE_INTERVAL, max_instances=1)
     scheduler.add_job(parse_rss_and_save, 'interval', seconds=PARSE_INTERVAL, max_instances=1)
     scheduler.add_job(check_scheduled_posts, 'interval', seconds=60)  # Проверка каждые 60 сек
     scheduler.add_job(cleanup_old_posts, 'interval', hours=1)  # Очистка раз в час
