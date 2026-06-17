@@ -979,14 +979,17 @@ async def remove_watermark_handler(callback: CallbackQuery):
     if result == image_path:
         await callback.message.answer("ℹ️ Водяной знак не обнаружен на фото.")
         return
-    # Обновляем путь в посте
-    post['image_url'] = result
-    user_current_post[user_id] = post
-    db.update_post_image(post_id, result)
     from aiogram.types import FSInputFile
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="✅ Использовать", callback_data=f"wm_apply|{post_id}|{result}"),
+            InlineKeyboardButton(text="❌ Отменить", callback_data=f"wm_cancel|{post_id}"),
+        ]
+    ])
     await callback.message.answer_photo(
         FSInputFile(result),
-        caption="✅ Водяной знак убран! Фото обновлено. Проверьте качество.",
+        caption="🪄 Результат обработки. Использовать это фото?",
+        reply_markup=kb
     )
 
 
@@ -1019,6 +1022,28 @@ async def next_post_handler(callback: CallbackQuery):
     text, markup = await get_posts_page_text_and_markup(user_id, next_page)
     await callback.message.edit_text(text, parse_mode="HTML", reply_markup=markup)
     await callback.answer()
+
+
+@router.callback_query(F.data.startswith("wm_apply|"))
+async def wm_apply_handler(callback: CallbackQuery):
+    """Применяет обработанное фото."""
+    parts = callback.data.split("|")
+    post_id = int(parts[1])
+    result_path = parts[2]
+    user_id = callback.from_user.id
+    post = user_current_post.get(user_id)
+    if post:
+        post['image_url'] = result_path
+        user_current_post[user_id] = post
+        db.update_post_image(post_id, result_path)
+    await callback.message.delete()
+    await callback.answer("✅ Фото обновлено!")
+
+@router.callback_query(F.data.startswith("wm_cancel|"))
+async def wm_cancel_handler(callback: CallbackQuery):
+    """Отменяет замену фото."""
+    await callback.message.delete()
+    await callback.answer("❌ Отменено, оригинал сохранён.")
 
 _OLD_CALLBACKS = {
     "publish_now", "schedule_post", "edit_post_text", "replace_photo",
