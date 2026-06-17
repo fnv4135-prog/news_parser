@@ -982,7 +982,7 @@ async def remove_watermark_handler(callback: CallbackQuery):
         await callback.message.answer("ℹ️ Водяной знак не обнаружен на фото.")
         return
     from aiogram.types import FSInputFile
-    user_wm_result[post_id] = result
+    user_wm_result[post_id] = image_path  # сохраняем оригинальный путь для обработки
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text="✅ Использовать", callback_data=f"wm_apply|{post_id}"),
@@ -1047,6 +1047,39 @@ async def wm_cancel_handler(callback: CallbackQuery):
     """Отменяет замену фото."""
     await callback.message.delete()
     await callback.answer("❌ Отменено, оригинал сохранён.")
+
+
+@router.callback_query(F.data.startswith("wm_zone|"))
+async def wm_zone_handler(callback: CallbackQuery):
+    """Обрабатывает выбранную зону водяного знака."""
+    from utils.watermark_remover import remove_watermark_zone
+    from aiogram.types import FSInputFile
+    parts = callback.data.split("|")
+    post_id = int(parts[1])
+    zone = parts[2]
+    image_path = user_wm_result.get(post_id)
+    if not image_path:
+        await callback.answer("❌ Сессия истекла, попробуйте снова.", show_alert=True)
+        return
+    await callback.message.delete()
+    await callback.answer("⏳ Обрабатываю...")
+    result = await remove_watermark_zone(image_path, zone)
+    if not result:
+        await callback.message.answer("❌ Не удалось обработать фото.")
+        return
+    user_wm_result[post_id] = result
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="✅ Использовать", callback_data=f"wm_apply|{post_id}"),
+            InlineKeyboardButton(text="🔄 Другая зона", callback_data=f"remove_watermark|{post_id}"),
+        ],
+        [InlineKeyboardButton(text="❌ Отменить", callback_data=f"wm_cancel|{post_id}")],
+    ])
+    await callback.message.answer_photo(
+        FSInputFile(result),
+        caption="🪄 Результат. Использовать это фото?",
+        reply_markup=kb
+    )
 
 _OLD_CALLBACKS = {
     "publish_now", "schedule_post", "edit_post_text", "replace_photo",

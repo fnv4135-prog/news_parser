@@ -74,6 +74,64 @@ def _detect_watermark_mask(img: np.ndarray) -> np.ndarray:
     return mask
 
 
+
+def _zone_to_mask(img: np.ndarray, zone: str) -> np.ndarray:
+    """Создаёт маску для выбранной зоны."""
+    h, w = img.shape[:2]
+    mask = np.zeros((h, w), dtype=np.uint8)
+    zh = int(h * 0.25)  # 25% высоты
+    zw = int(w * 0.45)  # 45% ширины
+
+    zones = {
+        'tl': (0, zh, 0, zw),                  # верхний левый
+        'tr': (0, zh, w - zw, w),              # верхний правый
+        'bl': (h - zh, h, 0, zw),              # нижний левый
+        'br': (h - zh, h, w - zw, w),          # нижний правый
+        'center': (h//4, 3*h//4, w//4, 3*w//4),  # центр
+    }
+    y1, y2, x1, x2 = zones.get(zone, zones['tl'])
+    mask[y1:y2, x1:x2] = 255
+    return mask
+
+
+async def remove_watermark_zone(image_path: str, zone: str) -> str | None:
+    """Убирает водяной знак в указанной зоне."""
+    import logging
+    log = logging.getLogger(__name__)
+    path = Path(image_path)
+    if not path.exists():
+        log.warning(f"[WATERMARK] Файл не найден: {image_path}")
+        return None
+
+    img = cv2.imread(str(path))
+    if img is None:
+        return None
+
+    mask = _zone_to_mask(img, zone)
+    _, img_encoded = cv2.imencode('.jpg', img)
+    _, mask_encoded = cv2.imencode('.png', mask)
+    img_b64 = base64.b64encode(img_encoded.tobytes()).decode()
+    mask_b64 = base64.b64encode(mask_encoded.tobytes()).decode()
+
+    log.info(f"[WATERMARK] Зона {zone}, отправляем в IOPaint...")
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(IOPAINT_URL, json={
+                "image": img_b64,
+                "mask": mask_b64,
+            })
+            resp.raise_for_status()
+
+        result_bytes = resp.content
+        out_path = path.with_stem(path.stem + f"_clean_{zone}")
+        out_path.write_bytes(result_bytes)
+        log.info(f"[WATERMARK] Готово: {out_path}")
+        return str(out_path)
+
+    except Exception as e:
+        log.error(f"[WATERMARK] Ошибка IOPaint: {e}")
+        return None
+
 async def remove_watermark(image_path: str) -> str | None:
     """
     Удаляет водяной знак с изображения.
