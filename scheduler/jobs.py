@@ -20,6 +20,8 @@ from scheduler.autopilot_jobs import run_autopilot_planner, run_autopilot_report
 db = Database()
 scheduler = AsyncIOScheduler()
 
+last_tg_parse_time = None  # Время последнего TG парсинга
+
 async def parse_vk_and_save():
     logging.info("Запуск парсинга VK...")
     token = os.getenv("VK_TOKEN")
@@ -140,7 +142,10 @@ async def parse_telegram_and_save():
                     new_count += 1
                     if urgent_word and saved_id:
                         await notify_urgent_post(saved_id, {'text': post.text, 'folder_id': folder_id}, urgent_word)
-        logging.info(f"Telegram парсинг завершён. Добавлено: {new_count}, пропущено длинных: {skipped}")
+        global last_tg_parse_time
+    import datetime
+    last_tg_parse_time = datetime.datetime.now()
+    logging.info(f"Telegram парсинг завершён. Добавлено: {new_count}, пропущено длинных: {skipped}")
 
 async def parse_rss_and_save():
     logging.info("Запуск парсинга RSS...")
