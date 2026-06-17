@@ -50,6 +50,7 @@ class AdStates(StatesGroup):
 user_posts_cache: Dict[int, List[dict]] = {}
 user_pages: Dict[int, int] = {}
 user_current_post: Dict[int, dict] = {}
+user_wm_result: Dict[int, str] = {}  # post_id -> путь к обработанному фото
 user_selected_channels: Dict[int, Set[str]] = {}
 user_edited_text: Dict[int, str] = {}
 user_selected_folder_for_publish: Dict[int, int] = {}
