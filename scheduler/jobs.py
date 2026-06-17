@@ -13,7 +13,7 @@ from database import Database
 from parsers.vk_parser import VKParser
 from parsers.tg_parser import TelegramParser
 from parsers.rss_parser import RSSParser
-from utils.text_cleaner import clean_text
+from utils.text_cleaner import clean_text, is_ad_post
 from bot_instance import get_bot
 from scheduler.autopilot_jobs import run_autopilot_planner, run_autopilot_reporter
 
@@ -56,6 +56,9 @@ async def parse_vk_and_save():
             for post in posts:
                 # Фильтр: без фото и длиннее 4096 → пропускаем (не поместится одним сообщением)
                 if not post.media_urls and len(post.text or '') > 4096:
+                    skipped += 1
+                    continue
+                if is_ad_post(post.text or ''):
                     skipped += 1
                     continue
                 stop_word = await db.run_async(db.post_has_stop_words, post.text or '')
@@ -110,6 +113,9 @@ async def parse_telegram_and_save():
                 if not post.media_urls and len(post.text or '') > 4096:
                     skipped += 1
                     continue
+                if is_ad_post(post.text or ''):
+                    skipped += 1
+                    continue
                 stop_word = await db.run_async(db.post_has_stop_words, post.text or '')
                 if stop_word:
                     log.debug(f"Пост заблокирован стоп-словом '{stop_word}': {post.post_id}")
@@ -153,6 +159,9 @@ async def parse_rss_and_save():
             posts = await parser.fetch_feed()
             for post in posts:
                 if not post.media_urls and len(post.text or '') > 4096:
+                    skipped += 1
+                    continue
+                if is_ad_post(post.text or ''):
                     skipped += 1
                     continue
                 stop_word = await db.run_async(db.post_has_stop_words, post.text or '')

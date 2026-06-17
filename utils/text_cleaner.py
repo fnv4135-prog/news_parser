@@ -110,6 +110,22 @@ def _strip_links_inline(line: str) -> str:
     return line.strip()
 
 
+# ---------------------------------------------------------------------------
+# Фильтр рекламных постов
+# ---------------------------------------------------------------------------
+
+_AD_POST_MARKERS = re.compile(
+    r'erid\s*[:：]|#реклама\b|^\s*реклама\s*$',
+    re.IGNORECASE | re.MULTILINE
+)
+
+def is_ad_post(text: str) -> bool:
+    """Возвращает True если пост является рекламой (erid, #реклама и т.д.)"""
+    if not text:
+        return False
+    return bool(_AD_POST_MARKERS.search(text))
+
+
 def clean_text(text: str) -> str:
     """Очищает текст поста от подписей, ссылок, рекламы."""
     if not text:
