@@ -988,7 +988,6 @@ async def remove_watermark_handler(callback: CallbackQuery):
     ])
     await callback.answer()
     await callback.message.answer("🪄 Где находится водяной знак?", reply_markup=kb)
-    )
 
 
 @router.callback_query(F.data.startswith("next_post|"))
