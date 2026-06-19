@@ -262,26 +262,23 @@ async def _send_scheduled_ad(bot, channel_id, text, media_list_json):
 
 
 async def notify_urgent_post(post_id: int, post: dict, urgent_word: str) -> None:
-    """Отправляет уведомление о срочной новости всем админам."""
+    """Помечает пост как срочный и отправляет тихое уведомление."""
     try:
-        from handlers.urgent import build_urgent_keyboard
+        # Помечаем пост как срочный в БД
+        db.mark_post_urgent(post_id, urgent_word)
+        # Считаем сколько непросмотренных
+        count = db.get_urgent_count()
         bot = get_bot()
-        folder = db.get_folder_by_id(post.get('folder_id'))
-        city = folder['name'] if folder else 'Неизвестный город'
-        text = post.get('text') or ''
-        preview = text[:300] + ('...' if len(text) > 300 else '')
-        msg = (
-            f"⚡️ <b>СРОЧНАЯ НОВОСТЬ</b> — {city}\n\n"
-            f"{preview}\n\n"
-            f"🔑 Ключевое слово: <b>{urgent_word}</b>"
-        )
-        kb = build_urgent_keyboard(post_id)
         for admin_id in ADMIN_IDS:
             try:
-                await bot.send_message(chat_id=admin_id, text=msg,
-                                       parse_mode="HTML", reply_markup=kb)
+                await bot.send_message(
+                    chat_id=admin_id,
+                    text=f"⚡️ Срочных новостей: <b>{count}</b>\n\nНажмите /urgent для просмотра",
+                    parse_mode="HTML",
+                    disable_notification=True
+                )
             except Exception as e:
-                log.error(f"[URGENT] Ошибка отправки админу {admin_id}: {e}")
+                log.error(f"[URGENT] Ошибка уведомления админу {admin_id}: {e}")
     except Exception as e:
         log.error(f"[URGENT] notify_urgent_post: {e}")
 

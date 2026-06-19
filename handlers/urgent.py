@@ -92,17 +92,85 @@ async def cmd_urgent_words_del(message: Message):
         await message.answer(f"❌ Слово <b>{word}</b> не найдено.", parse_mode="HTML")
 
 
+
+def build_urgent_keyboard(post_id: int, index: int = 0, total: int = 1):
+    kb = InlineKeyboardBuilder()
+    kb.button(text="🚀 Опубликовать", callback_data=f"urgent_publish_{post_id}_{index}")
+    kb.button(text="⏭ Следующая", callback_data=f"urgent_skip_{post_id}_{index}")
+    kb.button(text="❌ Закрыть", callback_data="urgent_close")
+    kb.adjust(2, 1)
+    return kb.as_markup()
+
+@router.message(Command("urgent"))
+async def cmd_urgent(message: Message):
+    """Показывает список срочных новостей."""
+    if message.from_user.id not in ADMIN_IDS:
+        return
+    count = db.get_urgent_count()
+    if count == 0:
+        await message.answer("✅ Нет новых срочных новостей.")
+        return
+    await show_urgent_post(message, index=0)
+
+
+async def show_urgent_post(message, index: int = 0, edit_msg=None):
+    """Показывает срочный пост по индексу."""
+    from aiogram.types import FSInputFile
+    import os
+    from utils.post_sender import get_media_urls
+
+    posts = db.get_urgent_posts(status='new')
+    if not posts:
+        text = "✅ Нет новых срочных новостей."
+        if edit_msg:
+            await edit_msg.edit_text(text)
+        else:
+            await message.answer(text)
+        return
+
+    total = len(posts)
+    if index >= total:
+        index = 0
+    post = posts[index]
+
+    folder = db.get_folder_by_id(post.get('folder_id'))
+    city = folder['name'] if folder else 'Неизвестный город'
+    text_preview = (post.get('text') or '')[:800]
+    urgent_word = post.get('urgent_word', '')
+
+    text = (
+        f"⚡️ <b>СРОЧНАЯ</b> — {city} ({index+1}/{total})\n\n"
+        f"{text_preview}"
+        f"{'...' if len(post.get('text') or '') > 800 else ''}\n\n"
+        f"🔑 Ключевое слово: <b>{urgent_word}</b>"
+    )
+
+    kb = build_urgent_keyboard(post['id'], index, total)
+
+    media_urls = get_media_urls(post)
+    photo = media_urls[0] if media_urls else post.get('image_url')
+
+    if photo and os.path.isfile(str(photo)):
+        await message.answer_photo(FSInputFile(photo), caption=text, reply_markup=kb, parse_mode="HTML")
+    elif photo:
+        await message.answer_photo(photo, caption=text, reply_markup=kb, parse_mode="HTML")
+    else:
+        await message.answer(text, reply_markup=kb, parse_mode="HTML")
+
+
 @router.callback_query(F.data.startswith("urgent_publish_"))
 async def cb_urgent_publish(callback: CallbackQuery):
     if callback.from_user.id not in ADMIN_IDS:
         return
-    post_id = int(callback.data.split("_")[2])
+    parts = callback.data.split("_")
+    post_id = int(parts[2])
+    index = int(parts[3]) if len(parts) > 3 else 0
+
     post = db.get_post_by_id(post_id)
     if not post:
         await callback.answer("❌ Пост не найден", show_alert=True)
         return
 
-    # Получаем каналы для папки поста
     channels = db.get_publish_channels_by_folder(post['folder_id'])
     if not channels:
         await callback.answer("❌ Нет каналов для публикации", show_alert=True)
@@ -114,8 +182,7 @@ async def cb_urgent_publish(callback: CallbackQuery):
     success = 0
     for ch in channels:
         try:
-            ok = await send_post(bot, int(ch['channel_id']), post,
-                                 signature=ch.get('signature'))
+            ok = await send_post(bot, int(ch['channel_id']), post, signature=ch.get('signature'))
             if ok:
                 success += 1
                 db.mark_as_posted(post_id)
@@ -123,29 +190,37 @@ async def cb_urgent_publish(callback: CallbackQuery):
         except Exception as e:
             log.error(f"[URGENT] Ошибка публикации в {ch['channel_id']}: {e}")
 
-    await callback.message.edit_text(
-        callback.message.text + f"\n\n✅ Опубликовано в {success} канал(ов).",
-        parse_mode="HTML"
-    )
-    await callback.answer()
+    db.set_urgent_status(post_id, 'published')
+    await callback.answer(f"✅ Опубликовано в {success} канал(ов)!")
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    await show_urgent_post(callback.message, index=index)
 
 
 @router.callback_query(F.data.startswith("urgent_skip_"))
 async def cb_urgent_skip(callback: CallbackQuery):
     if callback.from_user.id not in ADMIN_IDS:
         return
-    post_id = int(callback.data.split("_")[2])
-    db.mark_as_posted(post_id)  # помечаем чтобы больше не предлагать
-    await callback.message.edit_text(
-        callback.message.text + "\n\n❌ Пропущено.",
-        parse_mode="HTML"
-    )
+    parts = callback.data.split("_")
+    post_id = int(parts[2])
+    index = int(parts[3]) if len(parts) > 3 else 0
+
+    db.set_urgent_status(post_id, 'skipped')
+    await callback.answer("⏭ Пропущено")
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    await show_urgent_post(callback.message, index=index)
+
+
+@router.callback_query(F.data == "urgent_close")
+async def cb_urgent_close(callback: CallbackQuery):
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     await callback.answer()
 
-
-def build_urgent_keyboard(post_id: int):
-    kb = InlineKeyboardBuilder()
-    kb.button(text="🚀 Опубликовать", callback_data=f"urgent_publish_{post_id}")
-    kb.button(text="❌ Пропустить", callback_data=f"urgent_skip_{post_id}")
-    kb.adjust(2)
-    return kb.as_markup()

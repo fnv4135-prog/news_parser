@@ -462,6 +462,52 @@ class Database:
     # Срочные ключевые слова
     # ------------------------------------------------------------------
 
+
+    def mark_post_urgent(self, post_id: int, urgent_word: str):
+        """Помечает пост как срочный."""
+        conn = self.get_conn()
+        conn.execute(
+            "UPDATE posts SET is_urgent=1, urgent_status='new', urgent_word=? WHERE id=?",
+            (urgent_word, post_id)
+        )
+        conn.commit()
+        conn.close()
+
+    def get_urgent_posts(self, folder_id: int = None, status: str = 'new') -> list:
+        """Получает срочные посты."""
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        if folder_id:
+            cursor.execute(
+                "SELECT * FROM posts WHERE is_urgent=1 AND urgent_status=? AND folder_id=? ORDER BY parsed_at DESC",
+                (status, folder_id)
+            )
+        else:
+            cursor.execute(
+                "SELECT * FROM posts WHERE is_urgent=1 AND urgent_status=? ORDER BY parsed_at DESC",
+                (status,)
+            )
+        columns = [desc[0] for desc in cursor.description]
+        posts = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        conn.close()
+        return posts
+
+    def get_urgent_count(self) -> int:
+        """Количество непросмотренных срочных постов."""
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM posts WHERE is_urgent=1 AND urgent_status='new'")
+        count = cursor.fetchone()[0]
+        conn.close()
+        return count
+
+    def set_urgent_status(self, post_id: int, status: str):
+        """Устанавливает статус срочного поста (new/published/skipped)."""
+        conn = self.get_conn()
+        conn.execute("UPDATE posts SET urgent_status=? WHERE id=?", (status, post_id))
+        conn.commit()
+        conn.close()
+
     def get_urgent_words(self) -> List[str]:
         conn = self.get_conn()
         cursor = conn.cursor()
