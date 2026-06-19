@@ -269,14 +269,23 @@ async def notify_urgent_post(post_id: int, post: dict, urgent_word: str) -> None
         # Считаем сколько непросмотренных
         count = db.get_urgent_count()
         bot = get_bot()
+        import asyncio
         for admin_id in ADMIN_IDS:
             try:
-                await bot.send_message(
+                msg = await bot.send_message(
                     chat_id=admin_id,
                     text=f"⚡️ Срочных новостей: <b>{count}</b>\n\nНажмите /urgent для просмотра",
                     parse_mode="HTML",
                     disable_notification=True
                 )
+                # Удаляем через 5 минут
+                async def _delete_later(bot, chat_id, msg_id):
+                    await asyncio.sleep(300)
+                    try:
+                        await bot.delete_message(chat_id, msg_id)
+                    except Exception:
+                        pass
+                asyncio.create_task(_delete_later(bot, admin_id, msg.message_id))
             except Exception as e:
                 log.error(f"[URGENT] Ошибка уведомления админу {admin_id}: {e}")
     except Exception as e:
