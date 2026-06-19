@@ -419,7 +419,10 @@ async def ap_replace(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("ap_edit|"))
 async def ap_edit(callback: CallbackQuery, state: FSMContext):
     """Редактирование текста запланированного поста."""
-    scheduled_id = int(callback.data.split("|")[1])
+    parts = callback.data.split("|")
+    scheduled_id = int(parts[1])
+    folder_id = int(parts[2]) if len(parts) > 2 else None
+    index = int(parts[3]) if len(parts) > 3 else 0
     current = db.get_scheduled_by_id(scheduled_id)
     if not current:
         await callback.answer("❌ Пост не найден.", show_alert=True)
