@@ -62,6 +62,7 @@ def build_city_menu(folder_id: int, folder_name: str):
         [InlineKeyboardButton(text=f"📊 Постов в день: {posts_per_day}", callback_data=f"ap_ppd|{folder_id}")],
         [InlineKeyboardButton(text=f"🌙 Время плана: {plan_time}", callback_data=f"ap_plantime|{folder_id}")],
         [InlineKeyboardButton(text=f"☀️ Время сводки: {report_time}", callback_data=f"ap_reporttime|{folder_id}")],
+        [InlineKeyboardButton(text="📅 Посты на сегодня", callback_data=f"ap_review|{folder_id}|0")],
         [InlineKeyboardButton(text="◀ Назад", callback_data="ap_back")],
     ])
     return text, kb
@@ -413,3 +414,24 @@ async def ap_replace(callback: CallbackQuery):
         **{**callback.__dict__,
            'data': f"ap_review|{folder_id}|{index}"}
     ))
+
+@router.message(Command("today"))
+async def cmd_today(message: Message):
+    """Показывает список городов с автопилотом для просмотра плана на сегодня."""
+    from aiogram.utils.keyboard import InlineKeyboardBuilder
+    all_settings = db.get_all_autopilot_settings()
+    if not all_settings:
+        await message.answer("⚠️ Нет городов с включённым автопилотом.")
+        return
+    builder = InlineKeyboardBuilder()
+    for s in all_settings:
+        folder = db.get_folder_by_id(s['folder_id'])
+        if not folder:
+            continue
+        count = len(db.get_scheduled_by_folder(s['folder_id']))
+        builder.button(
+            text=f"{folder['name']} ({count} постов)",
+            callback_data=f"ap_review|{s['folder_id']}|0"
+        )
+    builder.adjust(1)
+    await message.answer("📅 Выберите город для просмотра плана:", reply_markup=builder.as_markup())
