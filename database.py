@@ -795,7 +795,7 @@ class Database:
 
 
     def get_posts_for_replacement(self, folder_id: int, exclude_post_id: int, limit: int = 100) -> List[Dict]:
-        """Посты для замены — все неопубликованные кроме текущего."""
+        """Посты для замены — неопубликованные, не в расписании, кроме текущего."""
         conn = self.get_conn()
         cursor = conn.cursor()
         cursor.execute("""
@@ -803,9 +803,13 @@ class Database:
             WHERE p.folder_id = ?
               AND p.is_posted = 0
               AND p.id != ?
+              AND p.id NOT IN (
+                  SELECT post_id FROM scheduled_posts
+                  WHERE status = 'pending' AND post_id IS NOT NULL AND folder_id = ?
+              )
             ORDER BY p.parsed_at DESC
             LIMIT ?
-        """, (folder_id, exclude_post_id, limit))
+        """, (folder_id, exclude_post_id, folder_id, limit))
         columns = [desc[0] for desc in cursor.description]
         posts = []
         for row in cursor.fetchall():
