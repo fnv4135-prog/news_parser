@@ -407,14 +407,8 @@ async def ap_replace(callback: CallbackQuery):
     conn.close()
 
     await callback.answer("✅ Пост заменён")
-
-    # Показываем обновлённый пост
-    await ap_review(callback.__class__(
-        update=callback.update,
-        bot=callback.bot,
-        **{**callback.__dict__,
-           'data': f"ap_review|{folder_id}|{index}"}
-    ))
+    callback.data = f"ap_review|{folder_id}|{index}"
+    await ap_review(callback)
 
 @router.callback_query(F.data.startswith("ap_edit|"))
 async def ap_edit(callback: CallbackQuery, state: FSMContext):
