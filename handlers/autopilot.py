@@ -274,7 +274,7 @@ async def ap_reporttime_set(callback: CallbackQuery, state: FSMContext):
 
 def build_review_keyboard(folder_id: int, index: int, total: int, scheduled_id: int):
     builder = InlineKeyboardBuilder()
-    builder.button(text="✏️ Редактировать", callback_data=f"ap_edit|{scheduled_id}")
+    builder.button(text="✏️ Редактировать", callback_data=f"ap_edit|{scheduled_id}|{folder_id}|{index}")
     builder.button(text="🔄 Заменить", callback_data=f"ap_replace|{folder_id}|{scheduled_id}|{index}")
     if index + 1 < total:
         builder.button(text=f"Следующий ({index + 2}/{total}) ➡️", callback_data=f"ap_review|{folder_id}|{index + 1}")
@@ -433,7 +433,15 @@ async def ap_edit(callback: CallbackQuery, state: FSMContext):
         f"<i>{(current.get('text') or '')[:3500]}</i>",
         parse_mode="HTML"
     )
-    await state.update_data(editing_scheduled_id=scheduled_id, prompt_msg_id=prompt.message_id, prompt_chat_id=prompt.chat.id)
+    folder_id = int(callback.data.split("|")[1]) if "|" in callback.data else None
+    # folder_id берём из callback.data ap_edit|scheduled_id, нужно передать отдельно
+    await state.update_data(
+        editing_scheduled_id=scheduled_id,
+        editing_folder_id=folder_id,
+        editing_index=index,
+        prompt_msg_id=prompt.message_id,
+        prompt_chat_id=prompt.chat.id
+    )
     await state.set_state(AutopilotStates.editing_post)
     await callback.answer()
 
@@ -458,15 +466,32 @@ async def ap_edit_save(message: Message, state: FSMContext):
         except Exception:
             pass
     await state.clear()
-    done = await message.answer("✅ Текст обновлён! Используйте /today для просмотра плана.")
-    # Удаляем подтверждение через 3 сек
+    folder_id = data.get('editing_folder_id')
+    index = data.get('editing_index', 0)
     import asyncio
-    await asyncio.sleep(3)
     try:
-        await done.delete()
         await message.delete()
     except Exception:
         pass
+    if folder_id is not None:
+        # Возвращаемся к просмотру плана
+        callback_data = f"ap_review|{folder_id}|{index}"
+        from aiogram.types import CallbackQuery as CQ
+        fake_cb = type('obj', (object,), {
+            'data': callback_data,
+            'message': message,
+            'from_user': message.from_user,
+            'answer': lambda *a, **kw: asyncio.sleep(0),
+            'bot': message.bot,
+        })()
+        await ap_review(fake_cb)
+    else:
+        done = await message.answer("✅ Текст обновлён!")
+        await asyncio.sleep(3)
+        try:
+            await done.delete()
+        except Exception:
+            pass
 
 @router.callback_query(F.data == "ap_close")
 async def ap_close(callback: CallbackQuery):
