@@ -427,7 +427,7 @@ async def ap_edit(callback: CallbackQuery, state: FSMContext):
         return
     await state.update_data(editing_scheduled_id=scheduled_id)
     await state.set_state(AutopilotStates.editing_post)
-    await callback.message.answer(
+    prompt = await callback.message.answer(
         f"✏️ Отправьте новый текст для поста:\n\n" +
         f"<i>{(current.get('text') or '')[:1000]}...</i>",
         parse_mode="HTML"
@@ -446,8 +446,24 @@ async def ap_edit_save(message: Message, state: FSMContext):
     conn.execute("UPDATE scheduled_posts SET text = ? WHERE id = ?", (message.text, scheduled_id))
     conn.commit()
     conn.close()
+    # Удаляем сообщение-запрос
+    prompt_msg_id = data.get('prompt_msg_id')
+    prompt_chat_id = data.get('prompt_chat_id')
+    if prompt_msg_id:
+        try:
+            await message.bot.delete_message(prompt_chat_id, prompt_msg_id)
+        except Exception:
+            pass
     await state.clear()
-    await message.answer("✅ Текст обновлён! Используйте /today для просмотра плана.")
+    done = await message.answer("✅ Текст обновлён! Используйте /today для просмотра плана.")
+    # Удаляем подтверждение через 3 сек
+    import asyncio
+    await asyncio.sleep(3)
+    try:
+        await done.delete()
+        await message.delete()
+    except Exception:
+        pass
 
 @router.callback_query(F.data == "ap_close")
 async def ap_close(callback: CallbackQuery):
