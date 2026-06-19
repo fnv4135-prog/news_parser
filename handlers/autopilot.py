@@ -433,8 +433,6 @@ async def ap_edit(callback: CallbackQuery, state: FSMContext):
         f"<i>{(current.get('text') or '')[:3500]}</i>",
         parse_mode="HTML"
     )
-    folder_id = int(callback.data.split("|")[1]) if "|" in callback.data else None
-    # folder_id берём из callback.data ap_edit|scheduled_id, нужно передать отдельно
     await state.update_data(
         editing_scheduled_id=scheduled_id,
         editing_folder_id=folder_id,
