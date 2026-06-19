@@ -429,7 +429,7 @@ async def ap_edit(callback: CallbackQuery, state: FSMContext):
     await state.set_state(AutopilotStates.editing_post)
     await callback.message.answer(
         f"✏️ Отправьте новый текст для поста:\n\n" +
-        f"<i>{(current.get('text') or '')[:200]}...</i>",
+        f"<i>{(current.get('text') or '')[:1000]}...</i>",
         parse_mode="HTML"
     )
     await callback.answer()
