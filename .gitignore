@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+venv/
+media/
+logs/
+data/
+*.session
+*.session-journal
+*.bak
+*.stackdump
