@@ -407,6 +407,10 @@ async def ap_replace(callback: CallbackQuery):
     conn.close()
 
     await callback.answer("✅ Пост заменён")
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     callback.data = f"ap_review|{folder_id}|{index}"
     await ap_review(callback)
 
