@@ -270,6 +270,48 @@ async def ap_reporttime_set(callback: CallbackQuery, state: FSMContext):
     await callback.answer("✅ Сохранено")
 
 
+
+async def _show_review(message, callback, folder_id: int, index: int):
+    """Показывает пост из плана по индексу."""
+    from utils.post_sender import get_media_urls
+    import os
+    folder = db.get_folder_by_id(folder_id)
+    folder_name = folder['name'] if folder else f"Город #{folder_id}"
+    scheduled = db.get_scheduled_by_folder(folder_id)
+    if not scheduled:
+        await message.answer(f"📭 {folder_name} — нет запланированных постов.")
+        return
+    total = len(scheduled)
+    if index >= total:
+        index = total - 1
+    sch = scheduled[index]
+    sched_time = sch['scheduled_at']
+    if isinstance(sched_time, str):
+        from datetime import datetime, timedelta
+        sched_time = datetime.strptime(sched_time[:16], "%Y-%m-%d %H:%M")
+    from datetime import timedelta
+    sched_msk = sched_time + timedelta(hours=3)
+    time_str = sched_msk.strftime("%H:%M")
+    text_preview = (sch['text'] or '')[:300]
+    text = (
+        f"📋 {folder_name} — пост {index + 1}/{total}\n"
+        f"🕐 Слот: {time_str}\n\n"
+        f"{text_preview}"
+        f"{'...' if len(sch['text'] or '') > 300 else ''}"
+    )
+    kb = build_review_keyboard(folder_id, index, total, sch['id'])
+    post = db.get_post_by_id(sch['post_id']) if sch.get('post_id') else None
+    image_url = sch.get('image_url') or (post.get('image_url') if post else None)
+    media_urls = get_media_urls(post) if post else []
+    photo = media_urls[0] if media_urls else image_url
+    if photo and os.path.isfile(str(photo)):
+        from aiogram.types import FSInputFile
+        await message.answer_photo(FSInputFile(photo), caption=text, reply_markup=kb, parse_mode="HTML")
+    elif photo:
+        await message.answer_photo(photo, caption=text, reply_markup=kb, parse_mode="HTML")
+    else:
+        await message.answer(text, reply_markup=kb, parse_mode="HTML")
+
 # ==================== ПРОСМОТР ПЛАНА ====================
 
 def build_review_keyboard(folder_id: int, index: int, total: int, scheduled_id: int):
@@ -418,8 +460,8 @@ async def ap_replace(callback: CallbackQuery):
         await callback.message.delete()
     except Exception:
         pass
-    callback.data = f"ap_review|{folder_id}|{index}"
-    await ap_review(callback)
+    # Вызываем логику ap_review напрямую
+    await _show_review(callback.message, callback, folder_id, index)
 
 @router.callback_query(F.data.startswith("ap_edit|"))
 async def ap_edit(callback: CallbackQuery, state: FSMContext):
@@ -474,24 +516,14 @@ async def ap_edit_save(message: Message, state: FSMContext):
     await state.clear()
     folder_id = data.get('editing_folder_id')
     index = data.get('editing_index', 0)
-    import asyncio
     try:
         await message.delete()
     except Exception:
         pass
     if folder_id is not None:
-        # Возвращаемся к просмотру плана
-        callback_data = f"ap_review|{folder_id}|{index}"
-        from aiogram.types import CallbackQuery as CQ
-        fake_cb = type('obj', (object,), {
-            'data': callback_data,
-            'message': message,
-            'from_user': message.from_user,
-            'answer': lambda *a, **kw: asyncio.sleep(0),
-            'bot': message.bot,
-        })()
-        await ap_review(fake_cb)
+        await _show_review(message, None, folder_id, index)
     else:
+        import asyncio
         done = await message.answer("✅ Текст обновлён!")
         await asyncio.sleep(3)
         try:
