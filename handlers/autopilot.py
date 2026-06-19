@@ -416,7 +416,6 @@ async def ap_replace(callback: CallbackQuery):
            'data': f"ap_review|{folder_id}|{index}"}
     ))
 
-
 @router.callback_query(F.data.startswith("ap_edit|"))
 async def ap_edit(callback: CallbackQuery, state: FSMContext):
     """Редактирование текста запланированного поста."""
@@ -425,13 +424,17 @@ async def ap_edit(callback: CallbackQuery, state: FSMContext):
     if not current:
         await callback.answer("❌ Пост не найден.", show_alert=True)
         return
-    await state.update_data(editing_scheduled_id=scheduled_id)
-    await state.set_state(AutopilotStates.editing_post)
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     prompt = await callback.message.answer(
-        f"✏️ Отправьте новый текст для поста:\n\n" +
-        f"<i>{(current.get('text') or '')[:1000]}...</i>",
+        "✏️ Отправьте новый текст для поста:\n\n" +
+        f"<i>{(current.get('text') or '')[:3500]}</i>",
         parse_mode="HTML"
     )
+    await state.update_data(editing_scheduled_id=scheduled_id, prompt_msg_id=prompt.message_id, prompt_chat_id=prompt.chat.id)
+    await state.set_state(AutopilotStates.editing_post)
     await callback.answer()
 
 @router.message(AutopilotStates.editing_post)
