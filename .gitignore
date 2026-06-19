@@ -11,3 +11,4 @@ data/
 *.session-journal
 *.bak
 *.stackdump
+config.py
