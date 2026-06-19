@@ -18,6 +18,7 @@ class AutopilotStates(StatesGroup):
     selecting_posts_per_day = State()
     selecting_plan_time = State()
     selecting_report_time = State()
+    editing_post = State()
 
 
 def build_city_keyboard():
@@ -278,7 +279,7 @@ def build_review_keyboard(folder_id: int, index: int, total: int, scheduled_id: 
     if index + 1 < total:
         builder.button(text=f"Следующий ({index + 2}/{total}) ➡️", callback_data=f"ap_review|{folder_id}|{index + 1}")
     else:
-        builder.button(text="✅ Готово", callback_data=f"ap_confirm|{folder_id}")
+        builder.button(text="◀ К первому", callback_data=f"ap_review|{folder_id}|0")
     builder.button(text="❌ Закрыть", callback_data="ap_close")
     builder.adjust(2, 1, 1)
     return builder.as_markup()
@@ -414,6 +415,48 @@ async def ap_replace(callback: CallbackQuery):
         **{**callback.__dict__,
            'data': f"ap_review|{folder_id}|{index}"}
     ))
+
+
+@router.callback_query(F.data.startswith("ap_edit|"))
+async def ap_edit(callback: CallbackQuery, state: FSMContext):
+    """Редактирование текста запланированного поста."""
+    scheduled_id = int(callback.data.split("|")[1])
+    current = db.get_scheduled_by_id(scheduled_id)
+    if not current:
+        await callback.answer("❌ Пост не найден.", show_alert=True)
+        return
+    await state.update_data(editing_scheduled_id=scheduled_id)
+    await state.set_state(AutopilotStates.editing_post)
+    await callback.message.answer(
+        f"✏️ Отправьте новый текст для поста:\n\n" +
+        f"<i>{(current.get('text') or '')[:200]}...</i>",
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+@router.message(AutopilotStates.editing_post)
+async def ap_edit_save(message: Message, state: FSMContext):
+    """Сохраняет отредактированный текст."""
+    data = await state.get_data()
+    scheduled_id = data.get('editing_scheduled_id')
+    if not scheduled_id:
+        await state.clear()
+        return
+    conn = db.get_conn()
+    conn.execute("UPDATE scheduled_posts SET text = ? WHERE id = ?", (message.text, scheduled_id))
+    conn.commit()
+    conn.close()
+    await state.clear()
+    await message.answer("✅ Текст обновлён! Используйте /today для просмотра плана.")
+
+@router.callback_query(F.data == "ap_close")
+async def ap_close(callback: CallbackQuery):
+    """Закрывает просмотр плана."""
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    await callback.answer()
 
 @router.message(Command("today"))
 async def cmd_today(message: Message):
