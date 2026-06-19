@@ -420,8 +420,7 @@ async def ap_replace(callback: CallbackQuery):
         return
 
     # Ищем замену — все неопубликованные кроме текущего
-    exclude_id = current.get('post_id') or 0
-    candidates = db.get_posts_for_replacement(folder_id, exclude_post_id=exclude_id, limit=100)
+    candidates = db.get_posts_for_replacement(folder_id, limit=100)
     replacement = None
     for c in candidates:
         if not c.get('text'):
