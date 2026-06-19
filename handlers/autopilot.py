@@ -319,11 +319,32 @@ async def ap_review(callback: CallbackQuery):
         f"{text_preview}"
         f"{'...' if len(sch['text'] or '') > 300 else ''}"
     )
+    kb = build_review_keyboard(folder_id, index, total, sch['id'])
+    # Получаем фото
+    from utils.post_sender import get_media_urls
+    import os
+    post = db.get_post_by_id(sch['post_id']) if sch.get('post_id') else None
+    image_url = sch.get('image_url') or (post.get('image_url') if post else None)
+    media_urls = get_media_urls(post) if post else []
+    photo = media_urls[0] if media_urls else image_url
 
-    await callback.message.edit_text(
-        text,
-        reply_markup=build_review_keyboard(folder_id, index, total, sch['id'])
-    )
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+
+    if photo and os.path.isfile(str(photo)):
+        from aiogram.types import FSInputFile
+        await callback.message.answer_photo(
+            FSInputFile(photo), caption=text, reply_markup=kb, parse_mode="HTML"
+        )
+    elif photo:
+        await callback.message.answer_photo(
+            photo, caption=text, reply_markup=kb, parse_mode="HTML"
+        )
+    else:
+        await callback.message.answer(text, reply_markup=kb, parse_mode="HTML")
+    await callback.answer()
     await callback.answer()
 
 

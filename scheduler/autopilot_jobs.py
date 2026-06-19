@@ -124,6 +124,8 @@ async def build_autopilot_plan(folder_id: int):
         scheduled_ids.append((sid, post, slot_time))
 
     logging.info(f"Автопилот [{folder_name}]: запланировано {len(scheduled_ids)} постов")
+    # Сразу отправляем сводку
+    await send_morning_report(folder_id)
     return scheduled_ids, folder_name
 
 
