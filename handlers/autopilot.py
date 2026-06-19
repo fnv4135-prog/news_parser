@@ -377,13 +377,20 @@ async def ap_replace(callback: CallbackQuery):
         await callback.answer("Пост не найден", show_alert=True)
         return
 
-    # Ищем замену — пост не в расписании и не тот же
-    candidates = db.get_posts_for_autopilot(folder_id, limit=20)
+    # Ищем замену — пост не в расписании, не тот же, с текстом, без видео
+    candidates = db.get_posts_for_autopilot(folder_id, limit=100)
     replacement = None
     for c in candidates:
-        if c['id'] != current.get('post_id'):
-            replacement = c
-            break
+        if c['id'] == current.get('post_id'):
+            continue
+        if not c.get('text'):
+            continue
+        # Пропускаем посты только с видео (без фото и текста)
+        media = c.get('media_urls') or ''
+        if 'mp4' in str(media).lower() and not c.get('image_url'):
+            continue
+        replacement = c
+        break
 
     if not replacement:
         await callback.answer("⚠️ Нет подходящих постов для замены", show_alert=True)
