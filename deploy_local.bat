@@ -21,7 +21,7 @@ if %errorlevel% neq 0 (
 
 echo.
 echo [2/3] Deploy to server...
-ssh -i C:\Users\fnv41\.ssh\server_key root@90.156.255.34 "cd /root/bots/news_parser && git pull origin main && ./deploy.sh '%MSG%'"
+ssh root@90.156.255.34 "cd /root/bots/news_parser && git stash && git pull origin main && git stash pop && ./deploy.sh '%MSG%'"
 if %errorlevel% neq 0 (
     echo ERROR: deploy failed
     pause
