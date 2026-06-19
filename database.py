@@ -793,6 +793,26 @@ class Database:
         conn.commit()
         conn.close()
 
+
+    def get_posts_for_replacement(self, folder_id: int, exclude_post_id: int, limit: int = 100) -> List[Dict]:
+        """Посты для замены — все неопубликованные кроме текущего."""
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT p.* FROM posts p
+            WHERE p.folder_id = ?
+              AND p.is_posted = 0
+              AND p.id != ?
+            ORDER BY p.parsed_at DESC
+            LIMIT ?
+        """, (folder_id, exclude_post_id, limit))
+        columns = [desc[0] for desc in cursor.description]
+        posts = []
+        for row in cursor.fetchall():
+            post = dict(zip(columns, row))
+            posts.append(post)
+        conn.close()
+        return posts
     def get_scheduled_by_id(self, scheduled_id: int) -> Optional[Dict]:
         """Получить отложенный пост по ID"""
         conn = self.get_conn()
