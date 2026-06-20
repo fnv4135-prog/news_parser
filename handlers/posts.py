@@ -1042,6 +1042,10 @@ async def next_post_handler(callback: CallbackQuery):
     # Удаляем текущий превью
     await _cleanup_preview(bot, callback.message.chat.id, user_id,
                            except_msg_id=None)
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     user_current_post[user_id] = next_post
     user_edited_text[user_id] = next_post.get('text', '')
     user_selected_channels.pop(user_id, None)
