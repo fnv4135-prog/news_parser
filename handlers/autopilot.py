@@ -483,10 +483,14 @@ async def ap_edit(callback: CallbackQuery, state: FSMContext):
         await callback.message.delete()
     except Exception:
         pass
+    from aiogram.utils.keyboard import InlineKeyboardBuilder
+    cancel_kb = InlineKeyboardBuilder()
+    cancel_kb.button(text="❌ Отмена", callback_data=f"ap_edit_cancel|{scheduled_id}|{folder_id}|{index}")
     prompt = await callback.message.answer(
         "✏️ Отправьте новый текст для поста:\n\n" +
         f"<i>{(current.get('text') or '')[:3500]}</i>",
-        parse_mode="HTML"
+        parse_mode="HTML",
+        reply_markup=cancel_kb.as_markup()
     )
     await state.update_data(
         editing_scheduled_id=scheduled_id,
@@ -570,3 +574,19 @@ async def today_close(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     from handlers.start import show_main_menu
     await show_main_menu(callback.message, state)
+
+
+@router.callback_query(F.data.startswith("ap_edit_cancel|"))
+async def ap_edit_cancel(callback: CallbackQuery, state: FSMContext):
+    parts = callback.data.split("|")
+    scheduled_id = int(parts[1])
+    folder_id = int(parts[2]) if len(parts) > 2 and parts[2] != "None" else None
+    index = int(parts[3]) if len(parts) > 3 else 0
+    await state.clear()
+    await callback.answer("❌ Отменено")
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    if folder_id is not None:
+        await _show_review(callback.message, None, folder_id, index)
