@@ -164,8 +164,6 @@ async def show_urgent_post(message, index: int = 0, edit_msg=None):
 
 @router.callback_query(F.data.startswith("urgent_publish_"))
 async def cb_urgent_publish(callback: CallbackQuery):
-    if callback.from_user.id not in ADMIN_IDS:
-        return
     parts = callback.data.split("_")
     post_id = int(parts[2])
     index = int(parts[3]) if len(parts) > 3 else 0
@@ -205,8 +203,6 @@ async def cb_urgent_publish(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("urgent_skip_"))
 async def cb_urgent_skip(callback: CallbackQuery):
-    if callback.from_user.id not in ADMIN_IDS:
-        return
     parts = callback.data.split("_")
     post_id = int(parts[2])
     index = int(parts[3]) if len(parts) > 3 else 0
@@ -223,8 +219,6 @@ async def cb_urgent_skip(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("urgent_edit_"))
 async def cb_urgent_edit(callback: CallbackQuery, state: FSMContext):
-    if callback.from_user.id not in ADMIN_IDS:
-        return
     parts = callback.data.split("_")
     post_id = int(parts[2])
     index = int(parts[3]) if len(parts) > 3 else 0
