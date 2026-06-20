@@ -175,5 +175,10 @@ async def back_to_cities(callback: CallbackQuery):
 @router.callback_query(F.data == "cancel_cities")
 async def cancel_cities(callback: CallbackQuery, state: FSMContext):
     await state.clear()
-    await callback.message.delete()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     await callback.answer()
+    from handlers.start import show_main_menu
+    await show_main_menu(callback.message, state)
