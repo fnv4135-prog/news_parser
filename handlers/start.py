@@ -41,11 +41,16 @@ async def show_main_menu(message: Message, state: FSMContext):
 
 @router.message(Command('start'))
 async def cmd_start(message: Message, state: FSMContext):
+    # Удаляем последние 10 сообщений чтобы очистить чат
+    bot = message.bot
+    chat_id = message.chat.id
+    msg_id = message.message_id
+    for i in range(msg_id, max(msg_id - 15, 0), -1):
+        try:
+            await bot.delete_message(chat_id, i)
+        except Exception:
+            pass
     await show_main_menu(message, state)
-    try:
-        await message.delete()
-    except Exception:
-        pass
 
 @router.callback_query(lambda c: c.data and c.data.startswith('menu_'))
 async def menu_callback(callback: CallbackQuery, state: FSMContext):
