@@ -6,6 +6,8 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 router = Router()
 
+_main_menu_msg_ids = {}  # user_id -> message_id главного меню
+
 
 async def show_main_menu(message: Message, state: FSMContext):
     kb = InlineKeyboardBuilder()
@@ -23,10 +25,18 @@ async def show_main_menu(message: Message, state: FSMContext):
     kb.button(text='❓ Помощь', callback_data='menu_help')
     kb.adjust(2)
     await state.clear()
-    await message.answer(
-        '👋 Привет! Выберите действие:',
+    user_id = message.chat.id
+    old_msg_id = _main_menu_msg_ids.get(user_id)
+    if old_msg_id:
+        try:
+            await message.bot.delete_message(user_id, old_msg_id)
+        except Exception:
+            pass
+    sent = await message.answer(
+        'Выберите действие:',
         reply_markup=kb.as_markup()
     )
+    _main_menu_msg_ids[user_id] = sent.message_id
 
 
 @router.message(Command('start'))
