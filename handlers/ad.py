@@ -94,9 +94,13 @@ async def _send_ad_to_channel(bot, channel_id: str, text: str, media_ids: list, 
 async def cmd_ad(message: Message, state: FSMContext):
     await state.clear()
     await state.set_state(AdStates.waiting_text)
+    from aiogram.utils.keyboard import InlineKeyboardBuilder
+    kb = InlineKeyboardBuilder()
+    kb.button(text="◀ Главное меню", callback_data="ad_cancel")
     await message.answer(
         "📢 Отправьте текст рекламного сообщения.\n"
-        "Можно использовать форматирование (жирный, курсив и т.д.)."
+        "Можно использовать форматирование (жирный, курсив и т.д.).",
+        reply_markup=kb.as_markup()
     )
     try:
         await message.delete()
