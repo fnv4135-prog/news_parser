@@ -426,7 +426,7 @@ async def cleanup_urgent_posts():
 def setup_scheduler():
     scheduler.add_job(parse_vk_and_save, 'interval', seconds=PARSE_INTERVAL, max_instances=1)
     # scheduler.add_job(parse_telegram_and_save, 'interval', seconds=PARSE_INTERVAL, max_instances=1)
-    scheduler.add_job(parse_telegram_and_save, 'cron', hour=21, minute=0, max_instances=1)  # 00:00 МСК
+    scheduler.add_job(parse_telegram_and_save, 'cron', minute=0, id='parse_tg', max_instances=1, misfire_grace_time=300)  # каждый час в :00
     scheduler.add_job(parse_rss_and_save, 'interval', seconds=PARSE_INTERVAL, max_instances=1)
     scheduler.add_job(check_scheduled_posts, 'interval', seconds=60)  # Проверка каждые 60 сек
     scheduler.add_job(cleanup_old_posts, 'interval', hours=1)  # Очистка раз в час
