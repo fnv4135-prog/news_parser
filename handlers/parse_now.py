@@ -57,3 +57,14 @@ async def cmd_parse_now(message: Message, state: FSMContext):
         reply_markup=kb.as_markup()
     )
     asyncio.create_task(delete_message(done_msg, 30))
+
+
+@router.callback_query(F.data == "parse_done_close")
+async def parse_done_close(callback: CallbackQuery, state: FSMContext):
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    await callback.answer()
+    from handlers.start import show_main_menu
+    await show_main_menu(callback.message, state)

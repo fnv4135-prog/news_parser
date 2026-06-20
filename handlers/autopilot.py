@@ -559,3 +559,14 @@ async def cmd_today(message: Message):
     builder.button(text="◀ Главное меню", callback_data="today_close")
     builder.adjust(1)
     await message.answer("📅 Выберите город для просмотра плана:", reply_markup=builder.as_markup())
+
+
+@router.callback_query(F.data == "today_close")
+async def today_close(callback: CallbackQuery, state: FSMContext):
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    await callback.answer()
+    from handlers.start import show_main_menu
+    await show_main_menu(callback.message, state)

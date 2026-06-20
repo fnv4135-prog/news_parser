@@ -1,7 +1,8 @@
 import logging
 from aiogram import Router
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
+from aiogram.fsm.context import FSMContext
 
 router = Router()
 
@@ -50,5 +51,8 @@ async def cmd_help(message: Message):
         "   • «Пост не найден» → нажмите «🔄 Обновить» или запустите /parse_now.\n\n"
         "📌 Если проблема не решается, напишите разработчику @NicholasBiz."
     )
-    await message.answer(help_text, parse_mode="HTML")
-    await message.delete()
+    from aiogram.utils.keyboard import InlineKeyboardBuilder
+    from aiogram.fsm.context import FSMContext
+    kb = InlineKeyboardBuilder()
+    kb.button(text="◀ Главное меню", callback_data="help_close")
+    await message.answer(help_text, parse_mode="HTML", reply_markup=kb.as_markup())
