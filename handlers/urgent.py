@@ -246,7 +246,7 @@ async def cb_urgent_edit(callback: CallbackQuery, state: FSMContext):
     except Exception:
         pass
     # Показываем превью поста через posts handler
-    from handlers.posts import _preview_kb, get_media_urls_from_post
+    from handlers.posts import _preview_kb
     from utils.post_sender import get_media_urls
     media_urls = get_media_urls(post)
     kb = _preview_kb(post['id'], has_image=bool(media_urls) or bool(post.get('image_url')))
