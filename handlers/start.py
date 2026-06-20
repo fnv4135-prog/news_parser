@@ -88,4 +88,6 @@ async def menu_callback(callback: CallbackQuery, state: FSMContext):
         except Exception as e:
             await msg.answer(f'⚠️ Ошибка: {e}')
     except Exception as e:
+        import logging
+        logging.error(f"menu_callback error [{callback.data}]: {e}", exc_info=True)
         await msg.answer(f'⚠️ Ошибка: {e}')
