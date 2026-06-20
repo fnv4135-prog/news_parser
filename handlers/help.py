@@ -56,3 +56,13 @@ async def cmd_help(message: Message):
     kb = InlineKeyboardBuilder()
     kb.button(text="◀ Главное меню", callback_data="help_close")
     await message.answer(help_text, parse_mode="HTML", reply_markup=kb.as_markup())
+
+@router.callback_query(lambda c: c.data == "help_close")
+async def help_close(callback: CallbackQuery, state: FSMContext):
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    await callback.answer()
+    from handlers.start import show_main_menu
+    await show_main_menu(callback.message, state)

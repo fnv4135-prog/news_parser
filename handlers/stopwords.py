@@ -16,6 +16,14 @@ from config import ADMIN_IDS
 
 log = logging.getLogger(__name__)
 router = Router()
+
+async def _delete_later(msg, seconds: int):
+    import asyncio
+    await asyncio.sleep(seconds)
+    try:
+        await msg.delete()
+    except Exception:
+        pass
 db = Database()
 
 _DEFAULT_STOP_WORDS = [
@@ -44,10 +52,14 @@ async def cmd_stopwords(message: Message):
             asyncio.create_task(_delete_later(msg, 5))
             return
         words_text = "\n".join(f"• {w}" for w in words)
+        from aiogram.utils.keyboard import InlineKeyboardBuilder
+        kb = InlineKeyboardBuilder()
+        kb.button(text="◀ Главное меню", callback_data="stopwords_close")
         await message.answer(
             f"📋 Стоп-слова ({len(words)} шт.):\n\n{words_text}\n\n"
             f"Добавить: /stopwords_add слово\n"
-            f"Удалить: /stopwords_del слово"
+            f"Удалить: /stopwords_del слово",
+            reply_markup=kb.as_markup()
         )
     except Exception as e:
         import logging
