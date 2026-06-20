@@ -47,9 +47,10 @@ async def cmd_stopwords(message: Message):
     try:
         words = db.get_stop_words()
         if not words:
-            msg = await message.answer("📋 Стоп-слова: список пуст.\n\nДобавить: /stopwords_add слово")
-            import asyncio
-            asyncio.create_task(_delete_later(msg, 5))
+            from aiogram.utils.keyboard import InlineKeyboardBuilder
+            kb = InlineKeyboardBuilder()
+            kb.button(text="◀ Главное меню", callback_data="stopwords_close")
+            await message.answer("📋 Стоп-слова: список пуст.\n\nДобавить: /stopwords_add слово", reply_markup=kb.as_markup())
             return
         words_text = "\n".join(f"• {w}" for w in words)
         from aiogram.utils.keyboard import InlineKeyboardBuilder
