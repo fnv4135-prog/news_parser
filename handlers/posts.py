@@ -261,13 +261,16 @@ async def get_mixed_posts(folder_id: int) -> list:
 
 async def get_posts_page_text_and_markup(user_id: int, page: int):
     posts = user_posts_cache.get(user_id, [])
+    from aiogram.utils.keyboard import InlineKeyboardBuilder
+    back_kb = InlineKeyboardBuilder()
+    back_kb.button(text="◀ Главное меню", callback_data="cancel_posts")
     if not posts:
-        return "Посты не найдены. Используйте /posts заново.", None
+        return "Посты не найдены. Используйте /posts заново.", back_kb.as_markup()
     start = page * 10
     end = start + 10
     page_posts = posts[start:end]
     if not page_posts:
-        return "Это последняя страница", None
+        return "Это последняя страница", back_kb.as_markup()
 
     builder = InlineKeyboardBuilder()
     for post in page_posts:
