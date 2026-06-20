@@ -1001,13 +1001,23 @@ async def remove_watermark_handler(callback: CallbackQuery):
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text="↖", callback_data=f"wm_zone|{post_id}|tl"),
+            InlineKeyboardButton(text="⬆", callback_data=f"wm_zone|{post_id}|tc"),
             InlineKeyboardButton(text="↗", callback_data=f"wm_zone|{post_id}|tr"),
         ],
         [
+            InlineKeyboardButton(text="◀", callback_data=f"wm_zone|{post_id}|ml"),
+            InlineKeyboardButton(text="🎯", callback_data=f"wm_zone|{post_id}|center"),
+            InlineKeyboardButton(text="▶", callback_data=f"wm_zone|{post_id}|mr"),
+        ],
+        [
             InlineKeyboardButton(text="↙", callback_data=f"wm_zone|{post_id}|bl"),
+            InlineKeyboardButton(text="⬇", callback_data=f"wm_zone|{post_id}|bc"),
             InlineKeyboardButton(text="↘", callback_data=f"wm_zone|{post_id}|br"),
         ],
-        [InlineKeyboardButton(text="🎯 Центр", callback_data=f"wm_zone|{post_id}|center")],
+        [
+            InlineKeyboardButton(text="━ Верх (полоса)", callback_data=f"wm_zone|{post_id}|top"),
+            InlineKeyboardButton(text="━ Низ (полоса)", callback_data=f"wm_zone|{post_id}|bottom"),
+        ],
         [InlineKeyboardButton(text="❌ Отменить", callback_data=f"wm_cancel|{post_id}")],
     ])
     await callback.answer()
