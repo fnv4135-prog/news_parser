@@ -93,7 +93,10 @@ async def cmd_autopilot(message: Message, state: FSMContext):
         "🤖 Автопилот\n\nВыберите город для настройки:",
         reply_markup=build_city_keyboard()
     )
-    await message.delete()
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 
 @router.callback_query(F.data == "ap_back")

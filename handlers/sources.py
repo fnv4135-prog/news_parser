@@ -22,7 +22,10 @@ async def cmd_sources(message: Message):
     folders = db.get_folders()
     if not folders:
         await message.answer("📭 Нет добавленных городов. Сначала создайте город через /cities.")
-        await message.delete()
+        try:
+            await message.delete()
+        except Exception:
+            pass
         return
     builder = InlineKeyboardBuilder()
     for folder in folders:
@@ -30,7 +33,10 @@ async def cmd_sources(message: Message):
     builder.button(text="❌ Отмена", callback_data="cancel_sources")
     builder.adjust(2)
     await message.answer("🏙 Выберите город, чтобы просмотреть его источники:", reply_markup=builder.as_markup())
-    await message.delete()
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 
 @router.callback_query(F.data.startswith("src_list_"))
@@ -145,7 +151,10 @@ async def cmd_add_source(message: Message, state: FSMContext):
     folders = db.get_folders()
     if not folders:
         await message.answer("📭 Нет добавленных городов. Сначала создайте город через /cities.")
-        await message.delete()
+        try:
+            await message.delete()
+        except Exception:
+            pass
         return
     builder = InlineKeyboardBuilder()
     for folder in folders:
@@ -153,7 +162,10 @@ async def cmd_add_source(message: Message, state: FSMContext):
     builder.button(text="❌ Отмена", callback_data="cancel_add_source")
     builder.adjust(1)
     await message.answer("🏙 Выберите город, в который добавить источник:", reply_markup=builder.as_markup())
-    await message.delete()
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 
 @router.callback_query(F.data.startswith("addsrc_city_"))
@@ -221,7 +233,10 @@ async def receive_source_value(message: Message, state: FSMContext):
         f"📡 Тип: {type_name}\n"
         f"🔗 Значение: {value}"
     )
-    await message.delete()
+    try:
+        await message.delete()
+    except Exception:
+        pass
     asyncio.create_task(delete_message(confirm, 15))
 
 

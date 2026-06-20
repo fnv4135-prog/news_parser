@@ -40,7 +40,6 @@ async def cmd_cities(message: Message, state: FSMContext):
     except Exception:
         pass
 
-
 @router.callback_query(F.data == "add_city")
 async def add_city_prompt(callback: CallbackQuery, state: FSMContext):
     await state.set_state(FolderStates.waiting_name)
@@ -64,7 +63,10 @@ async def add_city_name(message: Message, state: FSMContext):
     db.add_folder(name)
     
     await message.answer(f"✅ Город «{name}» добавлен!")
-    await message.delete()
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 
 @router.callback_query(F.data == "cancel_add_city")
@@ -118,7 +120,10 @@ async def edit_city_name(message: Message, state: FSMContext):
     db.update_folder_name(city_id, name)
     
     await message.answer(f"✅ Город переименован в «{name}»!")
-    await message.delete()
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 
 @router.callback_query(F.data == "cancel_edit_city")

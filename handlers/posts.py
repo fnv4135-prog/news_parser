@@ -134,8 +134,11 @@ async def cmd_posts(message: Message, state: FSMContext):
     folders = db.get_folders()
     if not folders:
         await message.answer("📭 Нет добавленных городов. Сначала создайте город через /cities.")
+    try:
         await message.delete()
-        return
+    except Exception:
+        pass
+    return
     builder = InlineKeyboardBuilder()
     for folder in folders:
         builder.button(text=folder['name'], callback_data=f"posts_city_{folder['id']}")
@@ -143,7 +146,10 @@ async def cmd_posts(message: Message, state: FSMContext):
     builder.adjust(2)
     sent = await message.answer("🏙 Выберите город для просмотра постов:", reply_markup=builder.as_markup())
     user_list_msg_id[user_id] = sent.message_id
-    await message.delete()
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 @router.callback_query(F.data.startswith("posts_city_"))
 async def select_city_for_posts(callback: CallbackQuery):
@@ -532,7 +538,10 @@ async def handle_photo_for_post(message: Message, state: FSMContext):
     media.append(message.photo[-1].file_id)  # строка = фото
     await state.update_data(new_media=media)
     
-    await message.delete()
+    try:
+        await message.delete()
+    except Exception:
+        pass
     count = len(media)
     sent = await message.answer(f"📎 Добавлено медиа: {count}. Отправьте ещё или нажмите Готово.")
     # Автоудаление счётчика через 3 сек
@@ -547,7 +556,10 @@ async def handle_video_for_post(message: Message, state: FSMContext):
     media.append({"type": "video", "id": message.video.file_id})
     await state.update_data(new_media=media)
     
-    await message.delete()
+    try:
+        await message.delete()
+    except Exception:
+        pass
     count = len(media)
     sent = await message.answer(f"📎 Добавлено медиа: {count}. Отправьте ещё или нажмите Готово.")
     asyncio.create_task(delete_message(sent, 3))
@@ -766,7 +778,10 @@ async def receive_post_signature(message: Message, state: FSMContext):
         f"✅ Подпись установлена!\n\n📝 Подпись: {sig_preview}\n\nВыберите действие:",
         reply_markup=kb
     )
-    await message.delete()
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 
 @router.callback_query(F.data.startswith("use_default_sig|"))

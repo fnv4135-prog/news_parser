@@ -37,7 +37,6 @@ async def cmd_start(message: Message, state: FSMContext):
     except Exception:
         pass
 
-
 @router.callback_query(lambda c: c.data and c.data.startswith('menu_'))
 async def menu_callback(callback: CallbackQuery, state: FSMContext):
     from handlers import posts, urgent, autopilot, schedule, parse_now, folders, sources, publish_channels, stopwords, ad, help

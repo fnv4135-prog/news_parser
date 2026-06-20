@@ -88,7 +88,10 @@ async def handle_edit_text(message: Message, state: FSMContext):
         parse_mode="HTML",
         reply_markup=_preview_kb(post['id'])
     )
-    await message.delete()
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 
 @router.callback_query(F.data.startswith("cancel_edit_text|"))
@@ -228,7 +231,10 @@ async def handle_schedule_time(message: Message, state: FSMContext):
         f"📢 Каналов: {len(channel_ids)}",
         reply_markup=kb
     )
-    await message.delete()
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 
 @router.callback_query(F.data.startswith("cancel_schedule|"))

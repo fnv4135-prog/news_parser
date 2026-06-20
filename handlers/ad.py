@@ -98,7 +98,10 @@ async def cmd_ad(message: Message, state: FSMContext):
         "📢 Отправьте текст рекламного сообщения.\n"
         "Можно использовать форматирование (жирный, курсив и т.д.)."
     )
-    await message.delete()
+    try:
+        await message.delete()
+    except Exception:
+        pass
     logging.info(f"User {message.from_user.id} started ad creation")
 
 
@@ -118,7 +121,10 @@ async def ad_receive_text(message: Message, state: FSMContext):
         "После каждого файла бот подтвердит приём.\n"
         "Когда закончите, нажмите /done (или /skip, если медиа не нужны)."
     )
-    await message.delete()
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 
 # ======================================================================
@@ -138,7 +144,10 @@ async def ad_receive_photo(message: Message, state: FSMContext):
     media_types.append('photo')
     await state.update_data(ad_media_list=media_list, ad_media_types=media_types)
     await message.answer(f"✅ Фото принято ({len(media_list)}/10). Отправьте ещё или /done.")
-    await message.delete()
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 
 @router.message(AdStates.waiting_media, F.video)
@@ -155,7 +164,10 @@ async def ad_receive_video(message: Message, state: FSMContext):
     media_types.append('video')
     await state.update_data(ad_media_list=media_list, ad_media_types=media_types)
     await message.answer(f"✅ Видео принято ({len(media_list)}/10). Отправьте ещё или /done.")
-    await message.delete()
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 
 @router.message(AdStates.waiting_media, Command("done", "skip"))
@@ -177,7 +189,10 @@ async def ad_media_done(message: Message, state: FSMContext):
         "🏙 Выберите город, в каналы которого хотите отправить рекламу:",
         reply_markup=builder.as_markup()
     )
-    await message.delete()
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 
 @router.message(AdStates.waiting_media, F.text)
@@ -407,7 +422,10 @@ async def ad_receive_time(message: Message, state: FSMContext):
         f"в {len(selected_channel_ids)} каналах.",
         reply_markup=kb
     )
-    await message.delete()
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 
 # ======================================================================

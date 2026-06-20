@@ -28,7 +28,10 @@ async def cmd_scheduled(message: Message, state: FSMContext):
     if total == 0:
         sent = await message.answer("📭 Нет запланированных постов.")
         asyncio.create_task(delete_message(sent, 30))
-        await message.delete()
+        try:
+            await message.delete()
+        except Exception:
+            pass
         return
     
     # Если только один город — сразу показываем посты
@@ -55,7 +58,10 @@ async def cmd_scheduled(message: Message, state: FSMContext):
         "Выберите город:",
         reply_markup=builder.as_markup()
     )
-    await message.delete()
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 
 async def show_scheduled_list(target, folder_id, is_message=False):
@@ -212,7 +218,10 @@ async def handle_new_scheduled_time(message: Message, state: FSMContext):
         await message.answer("❌ Ошибка: пост не найден")
     
     await state.clear()
-    await message.delete()
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 
 @router.callback_query(F.data.startswith("confirm_delete_sched|"))

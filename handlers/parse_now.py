@@ -38,7 +38,10 @@ def _last_tg_parse_info() -> str:
 @router.message(Command("parse_now"))
 async def cmd_parse_now(message: Message, state: FSMContext):
     await state.clear()
-    await message.delete()
+    try:
+        await message.delete()
+    except Exception:
+        pass
     tg_info = _last_tg_parse_info()
     sent = await message.answer(
         f"🔄 Запускаю парсинг VK и RSS...\n\n{tg_info}\n⏰ TG парсится автоматически в 00:00 МСК"

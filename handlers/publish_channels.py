@@ -24,15 +24,21 @@ async def cmd_channels(message: Message, state: FSMContext):
         folders = db.get_folders()
         if not folders:
             await message.answer("📭 Нет добавленных городов. Сначала создайте город через /cities.")
+        try:
             await message.delete()
-            return
+        except Exception:
+            pass
+        return
         builder = InlineKeyboardBuilder()
         for folder in folders:
             builder.button(text=folder['name'], callback_data=f"ch_list_{folder['id']}")
         builder.button(text="❌ Отмена", callback_data="cancel_channels")
         builder.adjust(2)
         await message.answer("🏙 Выберите город, чтобы просмотреть его каналы для публикации:", reply_markup=builder.as_markup())
-        await message.delete()
+        try:
+            await message.delete()
+        except Exception:
+            pass
     except Exception as e:
         logging.error(f"Ошибка в /channels: {e}")
         await message.answer("❌ Произошла ошибка. Попробуйте позже.")
@@ -172,7 +178,10 @@ async def set_signature_handler(message: Message, state: FSMContext):
             f"📝 Новая подпись:\n{signature}",
             parse_mode="HTML"
         )
-        await message.delete()
+        try:
+            await message.delete()
+        except Exception:
+            pass
         asyncio.create_task(delete_message(confirm, 15))
     except Exception as e:
         logging.error(f"Ошибка в set_signature_handler: {e}")
@@ -252,7 +261,10 @@ async def cmd_add_channel_start(message: Message, state: FSMContext):
         folders = db.get_folders()
         if not folders:
             await message.answer("📭 Нет добавленных городов. Сначала создайте город через /cities.")
-            await message.delete()
+            try:
+                await message.delete()
+            except Exception:
+                pass
             return
         builder = InlineKeyboardBuilder()
         for folder in folders:
@@ -260,7 +272,10 @@ async def cmd_add_channel_start(message: Message, state: FSMContext):
         builder.button(text="❌ Отмена", callback_data="cancel_add_channel")
         builder.adjust(2)
         await message.answer("🏙 Выберите город, в который добавить канал для публикации:", reply_markup=builder.as_markup())
-        await message.delete()
+        try:
+            await message.delete()
+        except Exception:
+            pass
     except Exception as e:
         logging.error(f"Ошибка в /add_channel: {e}")
         await message.answer("❌ Произошла ошибка. Попробуйте позже.")
@@ -320,7 +335,10 @@ async def receive_channel_forward(message: Message, state: FSMContext):
             f"🏙 Город: {folder['name']}\n\n"
             f"💡 Настройте подпись через /channels"
         )
-        await message.delete()
+        try:
+            await message.delete()
+        except Exception:
+            nano +338 /root/bots/news_parser/handlers/publish_channels.pypass
         asyncio.create_task(delete_message(confirm, 15))
         
     except Exception as e:
@@ -390,7 +408,10 @@ async def receive_channel_username(message: Message, state: FSMContext):
             f"🏙 Город: {folder['name']}\n\n"
             f"💡 Настройте подпись через /channels"
         )
-        await message.delete()
+        try:
+            await message.delete()
+        except Exception:
+            pass
         asyncio.create_task(delete_message(confirm, 15))
         
     except Exception as e:
