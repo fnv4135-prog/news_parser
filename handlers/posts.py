@@ -650,6 +650,8 @@ async def choose_publish_city(callback: CallbackQuery):
     builder.adjust(2)
     await callback.message.edit_text("🏙 Выберите город, в каналы которого хотите опубликовать пост:", reply_markup=builder.as_markup())
     await callback.answer()
+    from handlers.start import show_main_menu
+    await show_main_menu(callback.message, state)
 
 @router.callback_query(F.data.startswith("pub_city_"))
 async def select_publish_city(callback: CallbackQuery):
@@ -934,7 +936,7 @@ async def cancel_publish(callback: CallbackQuery):
     await callback.message.edit_text(text, parse_mode="HTML", reply_markup=markup)
 
 @router.callback_query(F.data == "cancel_posts")
-async def cancel_posts(callback: CallbackQuery):
+async def cancel_posts(callback: CallbackQuery, state: FSMContext):
     user_id = callback.from_user.id
     bot = get_bot()
     await _cleanup_all(bot, callback.message.chat.id, user_id)

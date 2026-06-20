@@ -137,7 +137,7 @@ async def delete_source(callback: CallbackQuery):
 
 
 @router.callback_query(F.data == "cancel_sources")
-async def cancel_sources(callback: CallbackQuery):
+async def cancel_sources(callback: CallbackQuery, state: FSMContext):
     await callback.message.delete()
     await callback.answer()
 
