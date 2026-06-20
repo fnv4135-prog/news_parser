@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from datetime import datetime
-from aiogram import Router
+from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
