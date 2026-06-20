@@ -6,6 +6,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
 from database import Database
+from utils.text_cleaner import clean_text
 from state import (
     PostEditStates,
     user_current_post, user_edited_text, user_selected_channels,
@@ -186,6 +187,8 @@ async def handle_schedule_time(message: Message, state: FSMContext):
     post_id = data['post_id']
     channel_ids = data['channel_ids']
     edited_text = data.get('edited_text')
+    if edited_text:
+        edited_text = clean_text(edited_text)
     image_url = data.get('image_url')
     media_urls = data.get('media_urls')
     folder_id = data.get('folder_id')
