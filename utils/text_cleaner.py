@@ -11,7 +11,9 @@ from typing import List
 # ---------------------------------------------------------------------------
 
 _RE_URL = re.compile(
-    r'https?://\S+|t\.me/\S+|vk\.com/\S+|vk\.ru/\S+|vk\.cc/\S+|max\.ru/\S+|dzen\.ru/\S+',
+    r'https?://\S+|t\.me/\S+|vk\.com/\S+|vk\.ru/\S+|vk\.cc/\S+|max\.ru/\S+|dzen\.ru/\S+'
+    r'|\b\w[\w\-]*\.(?:ru|com|net|org|info|рф)/\S*'
+    r'|\b\w[\w\-]*\.(?:ru|com|net|org|info|рф)\b',
     re.IGNORECASE
 )
 
