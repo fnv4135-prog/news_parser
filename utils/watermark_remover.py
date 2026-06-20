@@ -188,3 +188,42 @@ async def remove_watermark(image_path: str) -> str | None:
     except Exception as e:
         log.error(f"[WATERMARK] Ошибка IOPaint: {e}")
         return None
+
+def crop_watermark_zone(image_path: str, zone: str) -> str | None:
+    """Обрезает зону с водяным знаком."""
+    import logging
+    log = logging.getLogger(__name__)
+    path = Path(image_path)
+    if not path.exists():
+        return None
+    img = cv2.imread(str(path))
+    if img is None:
+        return None
+    h, w = img.shape[:2]
+    zh = int(h * 0.20)
+    zw = int(w * 0.40)
+    hm = int(h * 0.12)
+
+    # Что оставляем (инверсия зоны знака)
+    crops = {
+        'tl':     img[zh:, :],
+        'tc':     img[zh:, :],
+        'tr':     img[zh:, :],
+        'ml':     img[:, zw:],
+        'center': img,  # центр — только LaMa
+        'mr':     img[:, :w-zw],
+        'bl':     img[:h-zh, :],
+        'bc':     img[:h-zh, :],
+        'br':     img[:h-zh, :],
+        'top':    img[hm:, :],
+        'bottom': img[:h-hm, :],
+    }
+    cropped = crops.get(zone)
+    if cropped is None or zone == 'center':
+        log.warning(f"[CROP] Зона {zone} не поддерживает обрезку")
+        return None
+
+    out_path = path.with_stem(path.stem + f"_crop_{zone}")
+    cv2.imwrite(str(out_path), cropped)
+    log.info(f"[CROP] Готово: {out_path}")
+    return str(out_path)

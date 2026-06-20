@@ -1000,23 +1000,23 @@ async def remove_watermark_handler(callback: CallbackQuery):
     user_wm_result[post_id] = image_path
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="↖", callback_data=f"wm_zone|{post_id}|tl"),
-            InlineKeyboardButton(text="⬆", callback_data=f"wm_zone|{post_id}|tc"),
-            InlineKeyboardButton(text="↗", callback_data=f"wm_zone|{post_id}|tr"),
+            InlineKeyboardButton(text="↖", callback_data=f"wm_pick|{post_id}|tl"),
+            InlineKeyboardButton(text="⬆", callback_data=f"wm_pick|{post_id}|tc"),
+            InlineKeyboardButton(text="↗", callback_data=f"wm_pick|{post_id}|tr"),
         ],
         [
-            InlineKeyboardButton(text="◀", callback_data=f"wm_zone|{post_id}|ml"),
-            InlineKeyboardButton(text="🎯", callback_data=f"wm_zone|{post_id}|center"),
-            InlineKeyboardButton(text="▶", callback_data=f"wm_zone|{post_id}|mr"),
+            InlineKeyboardButton(text="◀", callback_data=f"wm_pick|{post_id}|ml"),
+            InlineKeyboardButton(text="🎯", callback_data=f"wm_pick|{post_id}|center"),
+            InlineKeyboardButton(text="▶", callback_data=f"wm_pick|{post_id}|mr"),
         ],
         [
-            InlineKeyboardButton(text="↙", callback_data=f"wm_zone|{post_id}|bl"),
-            InlineKeyboardButton(text="⬇", callback_data=f"wm_zone|{post_id}|bc"),
-            InlineKeyboardButton(text="↘", callback_data=f"wm_zone|{post_id}|br"),
+            InlineKeyboardButton(text="↙", callback_data=f"wm_pick|{post_id}|bl"),
+            InlineKeyboardButton(text="⬇", callback_data=f"wm_pick|{post_id}|bc"),
+            InlineKeyboardButton(text="↘", callback_data=f"wm_pick|{post_id}|br"),
         ],
         [
-            InlineKeyboardButton(text="━ Верх (полоса)", callback_data=f"wm_zone|{post_id}|top"),
-            InlineKeyboardButton(text="━ Низ (полоса)", callback_data=f"wm_zone|{post_id}|bottom"),
+            InlineKeyboardButton(text="━ Верх (полоса)", callback_data=f"wm_pick|{post_id}|top"),
+            InlineKeyboardButton(text="━ Низ (полоса)", callback_data=f"wm_pick|{post_id}|bottom"),
         ],
         [InlineKeyboardButton(text="❌ Отменить", callback_data=f"wm_cancel|{post_id}")],
     ])
@@ -1130,4 +1130,53 @@ async def catch_old_toggle(callback: CallbackQuery):
     await callback.answer(
         "⚠️ Эта кнопка устарела. Нажмите /posts заново.",
         show_alert=True
+    )
+
+@router.callback_query(F.data.startswith("wm_pick|"))
+async def wm_pick_handler(callback: CallbackQuery):
+    """Показывает выбор метода: замазать или обрезать."""
+    parts = callback.data.split("|")
+    post_id = int(parts[1])
+    zone = parts[2]
+    await callback.answer()
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="🪄 Замазать (AI)", callback_data=f"wm_zone|{post_id}|{zone}"),
+            InlineKeyboardButton(text="✂️ Обрезать", callback_data=f"wm_crop|{post_id}|{zone}"),
+        ],
+        [InlineKeyboardButton(text="◀ Назад", callback_data=f"remove_watermark|{post_id}")],
+    ])
+    await callback.message.edit_reply_markup(reply_markup=kb)
+
+
+@router.callback_query(F.data.startswith("wm_crop|"))
+async def wm_crop_handler(callback: CallbackQuery):
+    """Обрезает зону с водяным знаком."""
+    from utils.watermark_remover import crop_watermark_zone
+    from aiogram.types import FSInputFile
+    parts = callback.data.split("|")
+    post_id = int(parts[1])
+    zone = parts[2]
+    image_path = user_wm_result.get(post_id)
+    if not image_path:
+        await callback.answer("❌ Сессия истекла.", show_alert=True)
+        return
+    await callback.answer("✂️ Обрезаю...")
+    result = crop_watermark_zone(image_path, zone)
+    if not result:
+        await callback.message.answer("❌ Обрезка недоступна для этой зоны, используйте замазку.")
+        return
+    user_wm_result[post_id] = result
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="✅ Использовать", callback_data=f"wm_apply|{post_id}"),
+            InlineKeyboardButton(text="🔄 Другая зона", callback_data=f"remove_watermark|{post_id}"),
+        ],
+        [InlineKeyboardButton(text="❌ Отменить", callback_data=f"wm_cancel|{post_id}")],
+    ])
+    await callback.message.delete()
+    await callback.message.answer_photo(
+        FSInputFile(result),
+        caption="✂️ Результат обрезки. Использовать?",
+        reply_markup=kb
     )
