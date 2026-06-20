@@ -2,9 +2,10 @@ import asyncio
 import logging
 from datetime import datetime
 from aiogram import Router, F
+from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 from database import Database
 from scheduler.jobs import parse_vk_and_save, parse_rss_and_save
 from utils.delete_utils import delete_message
