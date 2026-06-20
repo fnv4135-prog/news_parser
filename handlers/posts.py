@@ -947,11 +947,6 @@ async def cancel_posts(callback: CallbackQuery, state: FSMContext):
     except Exception:
         pass
     await callback.answer()
-
-
-# ----------------------------------------------------------------------
-# Перезапуск /posts по кнопке (из тупиков)
-# ----------------------------------------------------------------------
     from handlers.start import show_main_menu
     await show_main_menu(callback.message, state)
 
