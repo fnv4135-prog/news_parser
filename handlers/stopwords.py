@@ -36,8 +36,6 @@ async def _ensure_defaults():
 
 @router.message(Command("stopwords"))
 async def cmd_stopwords(message: Message):
-    if message.from_user.id not in ADMIN_IDS:
-        return
     try:
         words = db.get_stop_words()
         if not words:
