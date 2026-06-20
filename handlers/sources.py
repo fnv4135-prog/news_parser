@@ -243,5 +243,10 @@ async def receive_source_value(message: Message, state: FSMContext):
 @router.callback_query(F.data == "cancel_add_source")
 async def cancel_add_source(callback: CallbackQuery, state: FSMContext):
     await state.clear()
-    await callback.message.edit_text("❌ Добавление источника отменено.")
     await callback.answer()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    from handlers.sources import cmd_sources
+    await cmd_sources(callback.message)

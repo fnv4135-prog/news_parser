@@ -72,8 +72,13 @@ async def add_city_name(message: Message, state: FSMContext):
 @router.callback_query(F.data == "cancel_add_city")
 async def cancel_add_city(callback: CallbackQuery, state: FSMContext):
     await state.clear()
-    await callback.message.edit_text("❌ Добавление города отменено.")
     await callback.answer()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    from handlers.folders import cmd_cities
+    await cmd_cities(callback.message, state)
 
 
 @router.callback_query(F.data.startswith("city_"))

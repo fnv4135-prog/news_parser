@@ -204,8 +204,13 @@ async def clear_signature(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "cancel_signature")
 async def cancel_signature(callback: CallbackQuery, state: FSMContext):
     await state.clear()
-    await callback.message.edit_text("❌ Изменение подписи отменено.")
     await callback.answer()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    from handlers.publish_channels import cmd_channels
+    await cmd_channels(callback.message, state)
 
 
 @router.callback_query(F.data.startswith("ch_del_"))
@@ -428,5 +433,10 @@ async def receive_channel_username(message: Message, state: FSMContext):
 @router.callback_query(F.data == "cancel_add_channel")
 async def cancel_add_channel(callback: CallbackQuery, state: FSMContext):
     await state.clear()
-    await callback.message.edit_text("❌ Добавление канала отменено.")
     await callback.answer()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    from handlers.publish_channels import cmd_channels
+    await cmd_channels(callback.message, state)
