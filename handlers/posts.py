@@ -1023,31 +1023,52 @@ async def remove_watermark_handler(callback: CallbackQuery):
 async def next_post_handler(callback: CallbackQuery):
     """Переход к следующему посту без возврата к списку."""
     user_id = callback.from_user.id
-    page = user_pages.get(user_id, 0)
-    next_page = page + 1
+    post_id = int(callback.data.split("|")[1])
     posts = user_posts_cache.get(user_id, [])
     if not posts:
         await callback.answer("⚠️ Кэш постов пуст. Нажмите /posts заново.", show_alert=True)
         return
-    # Считаем сколько постов на странице (из get_posts_page_text_and_markup)
-    POSTS_PER_PAGE = 10
-    start = next_page * POSTS_PER_PAGE
-    if start >= len(posts):
+    # Находим текущий индекс
+    current_idx = next((i for i, p in enumerate(posts) if p['id'] == post_id), None)
+    if current_idx is None:
+        await callback.answer("⚠️ Пост не найден в кэше.", show_alert=True)
+        return
+    next_idx = current_idx + 1
+    if next_idx >= len(posts):
         await callback.answer("✅ Это последний пост.", show_alert=True)
         return
-    user_pages[user_id] = next_page
-    # Очищаем текущий превью
+    next_post = posts[next_idx]
     bot = get_bot()
-    await _cleanup_all(bot, callback.message.chat.id, user_id,
-                       except_msg_id=callback.message.message_id)
-    user_current_post.pop(user_id, None)
+    # Удаляем текущий превью
+    await _cleanup_preview(bot, callback.message.chat.id, user_id,
+                           except_msg_id=None)
+    user_current_post[user_id] = next_post
+    user_edited_text[user_id] = next_post.get('text', '')
     user_selected_channels.pop(user_id, None)
-    user_edited_text.pop(user_id, None)
     user_schedule_data.pop(user_id, None)
-    # Показываем список следующей страницы
-    text, markup = await get_posts_page_text_and_markup(user_id, next_page)
-    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=markup)
     await callback.answer()
+    # Показываем превью следующего поста
+    user_current_post[user_id] = next_post
+    user_edited_text[user_id] = next_post.get('text', '')
+    user_selected_channels[user_id] = set()
+    preview_msg_ids = []
+    media_urls = get_media_urls(next_post)
+    if media_urls:
+        media_ids = await send_preview_media(callback.message, media_urls)
+        preview_msg_ids.extend(media_ids)
+    preview_text = next_post['text'][:3000]
+    if len(next_post['text']) > 3000:
+        preview_text += "..."
+    source_icon = {'vk': '📺 VK', 'telegram': '📱 TG', 'rss': '🌐 RSS'}.get(next_post.get('source'), '❓')
+    media_info = f" · 🖼 {len(media_urls)} фото" if len(media_urls) > 1 else (" · 🖼 фото" if len(media_urls) == 1 else "")
+    kb = _preview_kb(next_post['id'], has_image=bool(media_urls) or bool(next_post.get('image_url')))
+    sent_text = await callback.message.answer(
+        f"📝 <b>Предпросмотр поста</b> [{source_icon}{media_info}]\n\n{preview_text}\n\nВыберите действие:",
+        parse_mode="HTML",
+        reply_markup=kb
+    )
+    preview_msg_ids.append(sent_text.message_id)
+    user_preview_msg_ids[user_id] = preview_msg_ids
 
 
 @router.callback_query(F.data.startswith("wm_apply|"))
