@@ -259,6 +259,9 @@ async def cancel_channels(callback: CallbackQuery, state: FSMContext):
 # ----------------------------------------------------------------------
 # Команда /add_channel – добавить канал для публикации
 # ----------------------------------------------------------------------
+    from handlers.start import show_main_menu
+    await show_main_menu(callback.message, state)
+
 @router.message(Command("add_channel"))
 async def cmd_add_channel_start(message: Message, state: FSMContext):
     await state.clear()

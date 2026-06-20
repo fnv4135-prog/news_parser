@@ -145,6 +145,9 @@ async def cancel_sources(callback: CallbackQuery, state: FSMContext):
 # ----------------------------------------------------------------------
 # Команда /add_source — добавление источника с FSM
 # ----------------------------------------------------------------------
+    from handlers.start import show_main_menu
+    await show_main_menu(callback.message, state)
+
 @router.message(Command("add_source"))
 async def cmd_add_source(message: Message, state: FSMContext):
     await state.clear()  # Очищаем предыдущее состояние

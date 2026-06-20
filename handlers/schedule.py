@@ -188,7 +188,8 @@ async def cancel_edit_sched_time(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text("❌ Редактирование отменено.")
     asyncio.create_task(delete_message(callback.message, 3))
     await callback.answer()
-
+    from handlers.start import show_main_menu
+    await show_main_menu(callback.message, state)
 
 @router.message(ScheduleEditStates.waiting_new_time)
 async def handle_new_scheduled_time(message: Message, state: FSMContext):

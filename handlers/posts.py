@@ -952,6 +952,9 @@ async def cancel_posts(callback: CallbackQuery, state: FSMContext):
 # ----------------------------------------------------------------------
 # Перезапуск /posts по кнопке (из тупиков)
 # ----------------------------------------------------------------------
+    from handlers.start import show_main_menu
+    await show_main_menu(callback.message, state)
+
 @router.callback_query(F.data == "restart_posts")
 async def restart_posts(callback: CallbackQuery):
     """Эмулирует /posts — показывает выбор города"""
