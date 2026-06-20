@@ -134,11 +134,15 @@ async def cmd_posts(message: Message, state: FSMContext):
     folders = db.get_folders()
     if not folders:
         await message.answer("📭 Нет добавленных городов. Сначала создайте город через /cities.")
+        try:
+            await message.delete()
+        except Exception:
+            pass
+        return
     try:
         await message.delete()
     except Exception:
         pass
-    return
     builder = InlineKeyboardBuilder()
     for folder in folders:
         builder.button(text=folder['name'], callback_data=f"posts_city_{folder['id']}")
