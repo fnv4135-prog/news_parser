@@ -35,7 +35,10 @@ async def cmd_cities(message: Message, state: FSMContext):
     else:
         await message.answer("📭 Нет добавленных городов.\n\nНажмите «➕ Добавить город»:", reply_markup=builder.as_markup())
     
-    await message.delete()
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
 
 @router.callback_query(F.data == "add_city")
