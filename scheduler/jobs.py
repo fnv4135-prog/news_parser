@@ -21,6 +21,7 @@ db = Database()
 scheduler = AsyncIOScheduler()
 
 last_tg_parse_time = None  # Время последнего TG парсинга
+_urgent_msg_ids = {}  # admin_id -> message_id уведомления о срочных
 
 async def parse_vk_and_save():
     logging.info("Запуск парсинга VK...")
@@ -262,29 +263,45 @@ async def _send_scheduled_ad(bot, channel_id, text, media_list_json):
 
 
 async def notify_urgent_post(post_id: int, post: dict, urgent_word: str) -> None:
-    """Помечает пост как срочный и отправляет тихое уведомление."""
+    """Помечает пост как срочный и обновляет/создаёт одно уведомление."""
     try:
-        # Помечаем пост как срочный в БД
         db.mark_post_urgent(post_id, urgent_word)
-        # Считаем сколько непросмотренных
         count = db.get_urgent_count()
         bot = get_bot()
         import asyncio
+        text = f"⚡️ Срочных новостей: <b>{count}</b>\n\nНажмите /urgent для просмотра"
         for admin_id in ADMIN_IDS:
             try:
+                existing_msg_id = _urgent_msg_ids.get(admin_id)
+                if existing_msg_id:
+                    # Редактируем существующее
+                    try:
+                        await bot.edit_message_text(
+                            chat_id=admin_id,
+                            message_id=existing_msg_id,
+                            text=text,
+                            parse_mode="HTML"
+                        )
+                        continue
+                    except Exception:
+                        pass  # Сообщение удалено — создаём новое
+                # Создаём новое
                 msg = await bot.send_message(
                     chat_id=admin_id,
-                    text=f"⚡️ Срочных новостей: <b>{count}</b>\n\nНажмите /urgent для просмотра",
+                    text=text,
                     parse_mode="HTML",
                     disable_notification=True
                 )
-                # Удаляем через 5 минут
-                async def _delete_later(bot, chat_id, msg_id):
-                    await asyncio.sleep(300)
+                _urgent_msg_ids[admin_id] = msg.message_id
+                # Удаляем через 10 минут если никто не нажал
+                async def _delete_later(bot, chat_id, msg_id, admin_id=admin_id):
+                    await asyncio.sleep(600)
                     try:
                         await bot.delete_message(chat_id, msg_id)
                     except Exception:
                         pass
+                    if _urgent_msg_ids.get(admin_id) == msg_id:
+                        _urgent_msg_ids.pop(admin_id, None)
                 asyncio.create_task(_delete_later(bot, admin_id, msg.message_id))
             except Exception as e:
                 log.error(f"[URGENT] Ошибка уведомления админу {admin_id}: {e}")
