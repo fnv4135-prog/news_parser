@@ -112,8 +112,13 @@ async def ap_back(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "ap_close")
 async def ap_close(callback: CallbackQuery, state: FSMContext):
     await state.clear()
-    await callback.message.delete()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     await callback.answer()
+    from handlers.start import show_main_menu
+    await show_main_menu(callback.message, state)
 
 
 @router.callback_query(F.data.startswith("ap_city|"))
@@ -531,14 +536,7 @@ async def ap_edit_save(message: Message, state: FSMContext):
         except Exception:
             pass
 
-@router.callback_query(F.data == "ap_close")
-async def ap_close(callback: CallbackQuery):
-    """Закрывает просмотр плана."""
-    try:
-        await callback.message.delete()
-    except Exception:
-        pass
-    await callback.answer()
+
 
 @router.message(Command("today"))
 async def cmd_today(message: Message):
@@ -558,5 +556,6 @@ async def cmd_today(message: Message):
             text=f"{folder['name']} ({count} постов)",
             callback_data=f"ap_review|{s['folder_id']}|0"
         )
+    builder.button(text="◀ Главное меню", callback_data="today_close")
     builder.adjust(1)
     await message.answer("📅 Выберите город для просмотра плана:", reply_markup=builder.as_markup())

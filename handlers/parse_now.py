@@ -49,7 +49,11 @@ async def cmd_parse_now(message: Message, state: FSMContext):
     await asyncio.gather(parse_vk_and_save(), parse_rss_and_save())
     await sent.delete()
     tg_info = _last_tg_parse_info()
+    from aiogram.utils.keyboard import InlineKeyboardBuilder
+    kb = InlineKeyboardBuilder()
+    kb.button(text="◀ Главное меню", callback_data="parse_done_close")
     done_msg = await message.answer(
-        f"✅ VK и RSS готово.\n\n{tg_info}\nИспользуйте /posts для просмотра новых постов."
+        f"✅ VK и RSS готово.\n\n{tg_info}\nИспользуйте /posts для просмотра новых постов.",
+        reply_markup=kb.as_markup()
     )
-    asyncio.create_task(delete_message(done_msg, 15))
+    asyncio.create_task(delete_message(done_msg, 30))

@@ -60,7 +60,7 @@ async def show_publish_channels(callback: CallbackQuery):
         # Кнопка добавления всегда показывается
         builder.button(text="➕ Добавить канал", callback_data=f"addch_city_{folder_id}")
         builder.button(text="◀ Назад", callback_data="back_to_cities_channels")
-        builder.adjust(1)
+        builder.adjust(2)
         
         if channels:
             text = f"📢 Каналы для публикации в городе «{folder['name']}»:"
@@ -85,7 +85,7 @@ async def back_to_cities_channels(callback: CallbackQuery):
     for folder in folders:
         builder.button(text=folder['name'], callback_data=f"ch_list_{folder['id']}")
     builder.button(text="❌ Отмена", callback_data="cancel_channels")
-    builder.adjust(1)
+    builder.adjust(2)
     await callback.message.edit_text("🏙 Выберите город:", reply_markup=builder.as_markup())
     await callback.answer()
 

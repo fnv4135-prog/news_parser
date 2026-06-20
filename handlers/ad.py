@@ -432,13 +432,23 @@ async def ad_receive_time(message: Message, state: FSMContext):
 # Служебные callback'и
 # ======================================================================
 @router.callback_query(F.data == "ad_schedule_done")
-async def ad_schedule_done(callback: CallbackQuery):
-    await callback.message.delete()
+async def ad_schedule_done(callback: CallbackQuery, state: FSMContext):
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     await callback.answer()
+    from handlers.start import show_main_menu
+    await show_main_menu(callback.message, state)
 
 
 @router.callback_query(F.data == "ad_cancel")
 async def ad_cancel(callback: CallbackQuery, state: FSMContext):
     await state.clear()
-    await callback.message.edit_text("❌ Публикация рекламы отменена.")
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     await callback.answer()
+    from handlers.start import show_main_menu
+    await show_main_menu(callback.message, state)

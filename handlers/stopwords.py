@@ -39,7 +39,9 @@ async def cmd_stopwords(message: Message):
     try:
         words = db.get_stop_words()
         if not words:
-            await message.answer("📋 Стоп-слова: список пуст.\n\nДобавить: /stopwords_add слово")
+            msg = await message.answer("📋 Стоп-слова: список пуст.\n\nДобавить: /stopwords_add слово")
+            import asyncio
+            asyncio.create_task(_delete_later(msg, 5))
             return
         words_text = "\n".join(f"• {w}" for w in words)
         await message.answer(
@@ -55,6 +57,10 @@ async def cmd_stopwords(message: Message):
 
 @router.message(Command("stopwords_add"))
 async def cmd_stopwords_add(message: Message):
+    try:
+        await message.delete()
+    except Exception:
+        pass
     if message.from_user.id not in ADMIN_IDS:
         return
 

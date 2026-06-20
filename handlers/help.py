@@ -8,8 +8,10 @@ router = Router()
 
 @router.message(Command("help"))
 async def cmd_help(message: Message):
-    user_id = message.from_user.id
-    logging.info(f"User {user_id} requested /help")
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
     help_text = (
         "📖 <b>Инструкция по использованию бота</b>\n\n"

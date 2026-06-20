@@ -106,8 +106,10 @@ def build_urgent_keyboard(post_id: int, index: int = 0, total: int = 1):
 @router.message(Command("urgent"))
 async def cmd_urgent(message: Message):
     """Показывает список срочных новостей."""
-    if message.from_user.id not in ADMIN_IDS:
-        return
+    try:
+        await message.delete()
+    except Exception:
+        pass
     count = db.get_urgent_count()
     if count == 0:
         await message.answer("✅ Нет новых срочных новостей.")
@@ -256,10 +258,12 @@ async def cb_urgent_edit(callback: CallbackQuery, state: FSMContext):
     )
 
 @router.callback_query(F.data == "urgent_close")
-async def cb_urgent_close(callback: CallbackQuery):
+async def cb_urgent_close(callback: CallbackQuery, state: FSMContext):
     try:
         await callback.message.delete()
     except Exception:
         pass
     await callback.answer()
+    from handlers.start import show_main_menu
+    await show_main_menu(callback.message, state)
 

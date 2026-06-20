@@ -50,7 +50,7 @@ async def cmd_scheduled(message: Message, state: FSMContext):
         builder.button(text=f"🏙 {name} ({count})", callback_data=f"sched_city|{folder_id}")
     
     builder.button(text=f"📋 Все ({total})", callback_data="sched_city|all")
-    builder.button(text="❌ Закрыть", callback_data="close_scheduled_list")
+    builder.button(text="◀ Главное меню", callback_data="close_scheduled_list")
     builder.adjust(1)
     
     await message.answer(
@@ -102,7 +102,7 @@ async def show_scheduled_list(target, folder_id, is_message=False):
         builder.button(text=button_text, callback_data=f"view_scheduled|{sch['id']}")
     
     builder.button(text="◀ Назад", callback_data="sched_back_to_cities")
-    builder.button(text="❌ Закрыть", callback_data="close_scheduled_list")
+    builder.button(text="◀ Главное меню", callback_data="close_scheduled_list")
     builder.adjust(1)
     
     text = f"📋 {title} — запланировано ({len(scheduled)}):\n\nНажмите на пост для управления."
@@ -286,7 +286,7 @@ async def back_to_scheduled_cities(callback: CallbackQuery):
         builder.button(text=f"🏙 {name} ({count})", callback_data=f"sched_city|{folder_id}")
     
     builder.button(text=f"📋 Все ({total})", callback_data="sched_city|all")
-    builder.button(text="❌ Закрыть", callback_data="close_scheduled_list")
+    builder.button(text="◀ Главное меню", callback_data="close_scheduled_list")
     builder.adjust(1)
     
     await callback.message.edit_text(
