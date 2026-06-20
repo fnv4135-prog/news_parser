@@ -47,7 +47,13 @@ async def menu_callback(callback: CallbackQuery, state: FSMContext):
     except Exception:
         pass
 
+    # Подменяем from_user чтобы хендлеры видели реального пользователя
     msg = callback.message
+    msg._from_user = callback.from_user
+    try:
+        msg.from_user = callback.from_user
+    except Exception:
+        pass
 
     handlers_map = {
         'menu_posts':      (posts,            'cmd_posts'),
