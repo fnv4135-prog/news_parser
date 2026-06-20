@@ -9,7 +9,8 @@ handlers/stopwords.py — управление стоп-словами.
 import logging
 from aiogram import Router
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
+from aiogram.fsm.context import FSMContext
 
 from database import Database
 from config import ADMIN_IDS
@@ -106,3 +107,14 @@ async def cmd_stopwords_del(message: Message):
         log.info(f"Стоп-слово удалено: {word}")
     else:
         await message.answer(f"❌ Слово <b>{word}</b> не найдено в списке.", parse_mode="HTML")
+
+
+@router.callback_query(lambda c: c.data == "stopwords_close")
+async def stopwords_close(callback: CallbackQuery, state: FSMContext):
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    await callback.answer()
+    from handlers.start import show_main_menu
+    await show_main_menu(callback.message, state)
