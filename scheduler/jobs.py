@@ -396,6 +396,16 @@ def vacuum_database():
         logging.error(f"Ошибка VACUUM: {e}")
 
 
+
+
+async def cleanup_urgent_posts():
+    """Сбрасывает старые срочные в seen, оставляет последние 69"""
+    try:
+        await db.run_async(db.cleanup_urgent_keep_last, 69)
+        logging.debug("cleanup_urgent_posts: выполнено")
+    except Exception as e:
+        logging.error(f"cleanup_urgent_posts: {e}")
+
 def setup_scheduler():
     scheduler.add_job(parse_vk_and_save, 'interval', seconds=PARSE_INTERVAL, max_instances=1)
     # scheduler.add_job(parse_telegram_and_save, 'interval', seconds=PARSE_INTERVAL, max_instances=1)
@@ -406,4 +416,5 @@ def setup_scheduler():
     scheduler.add_job(vacuum_database, 'cron', day_of_week='sun', hour=4)
     scheduler.add_job(run_autopilot_planner, 'interval', minutes=1)
     scheduler.add_job(run_autopilot_reporter, 'interval', minutes=1)
+    scheduler.add_job(cleanup_urgent_posts, 'interval', minutes=15)
     scheduler.start()

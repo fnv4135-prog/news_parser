@@ -548,6 +548,22 @@ class Database:
                 return word
         return None
 
+
+    def cleanup_urgent_keep_last(self, keep: int = 69):
+        """Переводит старые срочные new→seen, оставляет последние keep штук"""
+        with self._get_conn() as conn:
+            conn.execute("""
+                UPDATE posts SET urgent_status='seen'
+                WHERE is_urgent=1 AND urgent_status='new'
+                AND id NOT IN (
+                    SELECT id FROM posts
+                    WHERE is_urgent=1 AND urgent_status='new'
+                    ORDER BY parsed_at DESC
+                    LIMIT ?
+                )
+            """, (keep,))
+            conn.commit()
+
     def vacuum(self):
         """Сжимает БД — освобождает место на диске после удалений."""
         conn = self.get_conn()
