@@ -415,6 +415,48 @@ def vacuum_database():
 
 
 
+async def check_urgent_notify():
+    """Каждые 5 минут: если есть срочные за 30 мин — обновляем уведомление, нет — удаляем."""
+    try:
+        count = db.get_urgent_count_recent(minutes=30)
+        bot = get_bot()
+        if count > 0:
+            text = f"⚡️ Срочных новостей: <b>{count}</b>\n\nНажмите /urgent для просмотра"
+            for admin_id in ADMIN_IDS:
+                try:
+                    existing_msg_id = _urgent_msg_ids.get(admin_id)
+                    if existing_msg_id:
+                        try:
+                            await bot.edit_message_text(
+                                chat_id=admin_id,
+                                message_id=existing_msg_id,
+                                text=text,
+                                parse_mode="HTML"
+                            )
+                            continue
+                        except Exception:
+                            _urgent_msg_ids.pop(admin_id, None)
+                    msg = await bot.send_message(
+                        chat_id=admin_id,
+                        text=text,
+                        parse_mode="HTML",
+                        disable_notification=True
+                    )
+                    _urgent_msg_ids[admin_id] = msg.message_id
+                except Exception as e:
+                    log.error(f"[URGENT] check_urgent_notify админ {admin_id}: {e}")
+        else:
+            # Срочных нет — удаляем уведомление
+            for admin_id in list(_urgent_msg_ids.keys()):
+                try:
+                    await bot.delete_message(admin_id, _urgent_msg_ids[admin_id])
+                except Exception:
+                    pass
+                _urgent_msg_ids.pop(admin_id, None)
+    except Exception as e:
+        log.error(f"[URGENT] check_urgent_notify: {e}")
+
+
 async def cleanup_urgent_posts():
     """Сбрасывает старые срочные в seen, оставляет последние 69"""
     try:
@@ -434,4 +476,5 @@ def setup_scheduler():
     scheduler.add_job(run_autopilot_planner, 'interval', minutes=1)
     scheduler.add_job(run_autopilot_reporter, 'interval', minutes=1)
     scheduler.add_job(cleanup_urgent_posts, 'interval', minutes=15)
+    scheduler.add_job(check_urgent_notify, 'interval', minutes=5)
     scheduler.start()

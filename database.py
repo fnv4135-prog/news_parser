@@ -501,6 +501,19 @@ class Database:
         conn.close()
         return count
 
+    def get_urgent_count_recent(self, minutes: int = 30) -> int:
+        """Количество срочных постов за последние N минут со статусом new."""
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT COUNT(*) FROM posts WHERE is_urgent=1 AND urgent_status='new' "
+            "AND parsed_at >= datetime('now', ?)",
+            (f'-{minutes} minutes',)
+        )
+        count = cursor.fetchone()[0]
+        conn.close()
+        return count
+
     def set_urgent_status(self, post_id: int, status: str):
         """Устанавливает статус срочного поста (new/published/skipped)."""
         conn = self.get_conn()
