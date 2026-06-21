@@ -130,7 +130,7 @@ async def handle_sw_add(message: Message, state: FSMContext):
 
     # Парсим через запятую
     raw = message.text.strip()
-    items = [w.strip().lower() for w in raw.split(",") if w.strip()]
+    items = [w.strip().lower() for w in raw.replace('،', ',').split(',') if w.strip()]
 
     added = []
     dupes = []
