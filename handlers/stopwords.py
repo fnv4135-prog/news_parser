@@ -73,8 +73,6 @@ async def _show_stopwords(target, user_id: int):
 
 @router.message(Command("stopwords"))
 async def cmd_stopwords(message: Message, state: FSMContext):
-    if message.from_user.id not in ADMIN_IDS:
-        return
     await state.clear()
     try:
         await message.delete()
