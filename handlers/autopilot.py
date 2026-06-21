@@ -569,9 +569,11 @@ async def cmd_today(message: Message):
             text=f"{folder['name']} ({count} постов)",
             callback_data=f"ap_review|{s['folder_id']}|0"
         )
-    builder.button(text="◀ Главное меню", callback_data="today_close")
-    builder.adjust(1)
-    await message.answer("📅 Выберите город для просмотра плана:", reply_markup=builder.as_markup())
+    builder.adjust(2)
+    from aiogram.types import InlineKeyboardButton
+    kb = builder.as_markup()
+    kb.inline_keyboard.append([InlineKeyboardButton(text="◀ Главное меню", callback_data="today_close")])
+    await message.answer("📅 Выберите город для просмотра плана:", reply_markup=kb)
 
 
 @router.callback_query(F.data == "today_close")
