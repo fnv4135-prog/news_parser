@@ -73,26 +73,33 @@ async def handle_edit_text(message: Message, state: FSMContext):
         await message.answer("❌ Пост не найден. Начните заново через /posts")
         return
     
+    data = await state.get_data()
+    from_urgent = data.get('from_urgent', False)
+    urgent_index = data.get('urgent_index', 0)
     await state.clear()
-    
+
     post['text'] = text
     user_edited_text[user_id] = text
     user_current_post[user_id] = post
-    
-    preview_text = text[:500]
-    if len(text) > 500:
-        preview_text += "..."
-    
-    await message.answer(
-        f"📝 <b>Текст обновлён!</b>\n\n{preview_text}\n\n"
-        f"Выберите действие:",
-        parse_mode="HTML",
-        reply_markup=_preview_kb(post['id'])
-    )
+
     try:
         await message.delete()
     except Exception:
         pass
+
+    if from_urgent:
+        from handlers.urgent import show_urgent_post
+        await show_urgent_post(message, index=urgent_index)
+    else:
+        preview_text = text[:500]
+        if len(text) > 500:
+            preview_text += "..."
+        await message.answer(
+            f"📝 <b>Текст обновлён!</b>\n\n{preview_text}\n\n"
+            f"Выберите действие:",
+            parse_mode="HTML",
+            reply_markup=_preview_kb(post['id'])
+        )
 
 
 @router.callback_query(F.data.startswith("cancel_edit_text|"))

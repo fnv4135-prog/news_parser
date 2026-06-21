@@ -294,20 +294,21 @@ async def cb_urgent_edit(callback: CallbackQuery, state: FSMContext):
     user_selected_channels[user_id] = set()
     if post.get('folder_id'):
         user_selected_folder_for_publish[user_id] = post['folder_id']
+    await state.update_data(from_urgent=True, urgent_index=index)
     await callback.answer("✏️ Открываю редактор...")
     try:
         await callback.message.delete()
     except Exception:
         pass
-    # Показываем превью поста через posts handler
-    from handlers.posts import _preview_kb
-    from utils.post_sender import get_media_urls
-    media_urls = get_media_urls(post)
-    kb = _preview_kb(post['id'], has_image=bool(media_urls) or bool(post.get('image_url')))
-    text_preview = (post.get('text') or '')[:3000]
+    from state import PostEditStates
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    await state.set_state(PostEditStates.waiting_text)
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Отмена", callback_data=f"cancel_edit_text|{post['id']}")]
+    ])
+    current_text = (post.get('text') or '')[:2000]
     await callback.message.answer(
-        f"📝 <b>Редактирование срочного поста</b>\n\n{text_preview}\n\nВыберите действие:",
-        parse_mode="HTML",
+        f"✍️ Введите новый текст поста.\n\nТекущий текст:\n{current_text}",
         reply_markup=kb
     )
 
