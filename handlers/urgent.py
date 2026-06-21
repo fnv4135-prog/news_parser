@@ -94,13 +94,18 @@ async def cmd_urgent_words_del(message: Message):
 
 
 
-def build_urgent_keyboard(post_id: int, index: int = 0, total: int = 1):
+def build_urgent_keyboard(post_id: int, index: int = 0, total: int = 1, has_image: bool = False):
     kb = InlineKeyboardBuilder()
     kb.button(text="🚀 Опубликовать", callback_data=f"urgent_publish_{post_id}_{index}")
     kb.button(text="⏭ Следующая", callback_data=f"urgent_skip_{post_id}_{index}")
     kb.button(text="✏️ Редактировать", callback_data=f"urgent_edit_{post_id}_{index}")
+    if has_image:
+        kb.button(text="🪄 Убрать водяной знак", callback_data=f"urgent_wm_{post_id}_{index}")
     kb.button(text="❌ Закрыть", callback_data="urgent_close")
-    kb.adjust(2, 1, 1)
+    if has_image:
+        kb.adjust(2, 1, 1, 1)
+    else:
+        kb.adjust(2, 1, 1)
     return kb.as_markup()
 
 @router.message(Command("urgent"))
@@ -149,7 +154,7 @@ async def show_urgent_post(message, index: int = 0, edit_msg=None):
         f"🔑 Ключевое слово: <b>{urgent_word}</b>"
     )
 
-    kb = build_urgent_keyboard(post['id'], index, total)
+    kb = build_urgent_keyboard(post['id'], index, total, has_image=bool(photo))
 
     media_urls = get_media_urls(post)
     photo = media_urls[0] if media_urls else post.get('image_url')
@@ -216,6 +221,61 @@ async def cb_urgent_skip(callback: CallbackQuery):
     await show_urgent_post(callback.message, index=index)
 
 
+
+
+@router.callback_query(F.data.startswith("urgent_wm_"))
+async def cb_urgent_wm(callback: CallbackQuery, state: FSMContext):
+    """Запускает удаление водяного знака из срочного поста."""
+    parts = callback.data.split("_")
+    post_id = int(parts[2])
+    index = int(parts[3]) if len(parts) > 3 else 0
+
+    from state import user_current_post, user_edited_text, user_selected_channels, user_selected_folder_for_publish, user_wm_result
+    post = db.get_post_by_id(post_id)
+    if not post:
+        await callback.answer("❌ Пост не найден", show_alert=True)
+        return
+
+    from utils.post_sender import get_media_urls
+    media_urls = get_media_urls(post)
+    image_path = media_urls[0] if media_urls else post.get('image_url')
+    if not image_path:
+        await callback.answer("❌ Фото не найдено", show_alert=True)
+        return
+
+    user_id = callback.from_user.id
+    user_current_post[user_id] = post
+    user_edited_text[user_id] = post.get('text', '')
+    user_selected_channels[user_id] = set()
+    if post.get('folder_id'):
+        user_selected_folder_for_publish[user_id] = post['folder_id']
+    user_wm_result[post_id] = image_path
+
+    await callback.answer("🪄 Выберите зону...")
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="↖", callback_data=f"wm_pick|{post_id}|tl"),
+            InlineKeyboardButton(text="⬆", callback_data=f"wm_pick|{post_id}|tc"),
+            InlineKeyboardButton(text="↗", callback_data=f"wm_pick|{post_id}|tr"),
+        ],
+        [
+            InlineKeyboardButton(text="◀", callback_data=f"wm_pick|{post_id}|ml"),
+            InlineKeyboardButton(text="🎯", callback_data=f"wm_pick|{post_id}|mc"),
+            InlineKeyboardButton(text="▶", callback_data=f"wm_pick|{post_id}|mr"),
+        ],
+        [
+            InlineKeyboardButton(text="↙", callback_data=f"wm_pick|{post_id}|bl"),
+            InlineKeyboardButton(text="⬇", callback_data=f"wm_pick|{post_id}|bc"),
+            InlineKeyboardButton(text="↘", callback_data=f"wm_pick|{post_id}|br"),
+        ],
+        [
+            InlineKeyboardButton(text="━ Верх (полоса)", callback_data=f"wm_pick|{post_id}|top"),
+            InlineKeyboardButton(text="━ Низ (полоса)", callback_data=f"wm_pick|{post_id}|bottom"),
+        ],
+        [InlineKeyboardButton(text="❌ Отменить", callback_data=f"wm_cancel|{post_id}")],
+    ])
+    await callback.message.answer("🪄 Где находится водяной знак?", reply_markup=kb)
 
 @router.callback_query(F.data.startswith("urgent_edit_"))
 async def cb_urgent_edit(callback: CallbackQuery, state: FSMContext):
