@@ -45,7 +45,7 @@ def _build_text(words: list) -> str:
     return f"📋 <b>Стоп-слова</b> ({len(words)} шт.):\n\n{words_text}"
 
 
-async def _show_stopwords(target, user_id: int, state: FSMContext = None):
+async def _show_stopwords(target, user_id: int):
     """Отправляет или редактирует сообщение со стоп-словами."""
     from bot_instance import get_bot
     words = db.get_stop_words()
@@ -54,19 +54,20 @@ async def _show_stopwords(target, user_id: int, state: FSMContext = None):
 
     existing_mid = _sw_msg_ids.get(user_id)
     bot = get_bot()
+    chat_id = target.chat.id
 
     if existing_mid:
         try:
             await bot.edit_message_text(
-                text, chat_id=target.chat.id,
+                text, chat_id=chat_id,
                 message_id=existing_mid,
                 reply_markup=kb, parse_mode="HTML"
             )
             return
         except Exception:
-            pass
+            _sw_msg_ids.pop(user_id, None)
 
-    sent = await target.answer(text, reply_markup=kb, parse_mode="HTML")
+    sent = await bot.send_message(chat_id, text, reply_markup=kb, parse_mode="HTML")
     _sw_msg_ids[user_id] = sent.message_id
 
 
@@ -79,7 +80,7 @@ async def cmd_stopwords(message: Message, state: FSMContext):
         await message.delete()
     except Exception:
         pass
-    await _show_stopwords(message, message.from_user.id, state)
+    await _show_stopwords(message, message.from_user.id)
 
 
 @router.callback_query(F.data == "sw_add")
