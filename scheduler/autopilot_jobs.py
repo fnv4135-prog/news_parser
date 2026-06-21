@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime, timedelta
 from typing import List, Dict
@@ -7,6 +8,12 @@ from bot_instance import get_bot
 from config import ADMIN_IDS
 
 db = Database()
+
+# Хранилище message_id сводки: admin_id -> message_id
+# Сбрасывается при новом дне
+_plan_summary: dict = {}   # admin_id -> message_id
+_plan_summary_date: str = ""  # дата последней сводки YYYY-MM-DD
+_plan_cities_count: int = 0   # сколько городов уже в сводке
 
 
 def _normalize_title(text: str) -> str:
@@ -130,44 +137,63 @@ async def build_autopilot_plan(folder_id: int):
 
 
 async def send_morning_report(folder_id: int):
-    """Отправляет утреннюю сводку админам"""
-    from aiogram.utils.keyboard import InlineKeyboardBuilder
+    """Обновляет единую сводку плана для всех городов."""
+    global _plan_summary, _plan_summary_date, _plan_cities_count
 
     settings = db.get_autopilot_settings(folder_id)
     if not settings or not settings['is_enabled']:
         return
-
-    folder = db.get_folder_by_id(folder_id)
-    folder_name = folder['name'] if folder else f"Город #{folder_id}"
 
     scheduled = db.get_scheduled_by_folder(folder_id)
     if not scheduled:
         return
 
     bot = get_bot()
+    today = (datetime.utcnow() + timedelta(hours=3)).strftime("%Y-%m-%d")
 
-    # Формируем текст сводки
-    lines = [f"📅 {folder_name} — план на сегодня ({len(scheduled)} постов)\n"]
-    for sch in scheduled:
-        sched_time = sch['scheduled_at']
-        if isinstance(sched_time, str):
-            sched_time = datetime.strptime(sched_time[:16], "%Y-%m-%d %H:%M")
-        # UTC → МСК
-        sched_msk = sched_time + timedelta(hours=3)
-        time_str = sched_msk.strftime("%H:%M")
-        text_preview = (sch['text'] or '')[:60].replace('\n', ' ')
-        lines.append(f"🕐 {time_str}  {text_preview}...")
+    # Сброс при новом дне
+    if _plan_summary_date != today:
+        _plan_summary = {}
+        _plan_summary_date = today
+        _plan_cities_count = 0
 
-    text = "\n".join(lines)
+    _plan_cities_count += 1
 
-    builder = InlineKeyboardBuilder()
-    builder.button(text="👁 Просмотреть план", callback_data=f"ap_review|{folder_id}|0")
-    builder.button(text="✅ Запустить", callback_data=f"ap_confirm|{folder_id}")
-    builder.adjust(1)
+    # Считаем общее число городов и постов в плане на сегодня
+    all_settings = db.get_all_autopilot_settings()
+    total_posts = 0
+    for s in all_settings:
+        if s['is_enabled']:
+            posts = db.get_scheduled_by_folder(s['folder_id'])
+            total_posts += len(posts)
+
+    text = (
+        f"📅 Сегодня запланированы публикации в <b>{_plan_cities_count}</b> город(ах)\n"
+        f"Всего постов: <b>{total_posts}</b>"
+    )
+
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📋 Подробнее", switch_inline_query_current_chat="/today")]
+    ])
 
     for admin_id in ADMIN_IDS:
         try:
-            await bot.send_message(admin_id, text, reply_markup=builder.as_markup())
+            if admin_id in _plan_summary:
+                # Редактируем существующее
+                try:
+                    await bot.edit_message_text(
+                        text, chat_id=admin_id,
+                        message_id=_plan_summary[admin_id],
+                        reply_markup=kb, parse_mode="HTML"
+                    )
+                except Exception:
+                    # Если не удалось отредактировать — шлём новое
+                    msg = await bot.send_message(admin_id, text, reply_markup=kb, parse_mode="HTML")
+                    _plan_summary[admin_id] = msg.message_id
+            else:
+                msg = await bot.send_message(admin_id, text, reply_markup=kb, parse_mode="HTML")
+                _plan_summary[admin_id] = msg.message_id
         except Exception as e:
             logging.error(f"Ошибка отправки сводки админу {admin_id}: {e}")
 

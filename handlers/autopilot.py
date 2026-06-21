@@ -407,11 +407,20 @@ async def ap_confirm(callback: CallbackQuery):
     folder_name = folder['name'] if folder else f"Город #{folder_id}"
 
     scheduled = db.get_scheduled_by_folder(folder_id)
-    await callback.message.edit_text(
+    sent = await callback.message.edit_text(
         f"✅ {folder_name} — план запущен!\n"
         f"Запланировано постов: {len(scheduled)}"
     )
     await callback.answer()
+    # Удаляем через 5 минут
+    import asyncio
+    async def _delete_later():
+        await asyncio.sleep(300)
+        try:
+            await callback.message.delete()
+        except Exception:
+            pass
+    asyncio.create_task(_delete_later())
 
 
 @router.callback_query(F.data.startswith("ap_replace|"))
