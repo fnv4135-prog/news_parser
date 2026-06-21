@@ -1,116 +1,175 @@
 """
 handlers/stopwords.py — управление стоп-словами.
-
-Команды:
-    /stopwords — показать список
-    /stopwords_add <слово> — добавить
-    /stopwords_del <слово> — удалить
 """
 import logging
-from aiogram import Router
+import asyncio
+from aiogram import Router, F
 from aiogram.filters import Command
-from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from database import Database
 from config import ADMIN_IDS
 
 log = logging.getLogger(__name__)
 router = Router()
-
-async def _delete_later(msg, seconds: int):
-    import asyncio
-    await asyncio.sleep(seconds)
-    try:
-        await msg.delete()
-    except Exception:
-        pass
 db = Database()
 
-_DEFAULT_STOP_WORDS = [
-    "реклама", "скидка", "скидки", "промокод", "акция",
-    "натяжной потолок", "бесплатный замер", "расчёт стоимости",
-    "купить", "продам", "сдам", "заказать",
-]
+# Хранилище message_id основного сообщения стоп-слов
+_sw_msg_ids: dict = {}  # user_id -> message_id
 
 
-async def _ensure_defaults():
-    """Добавляет дефолтные стоп-слова если список пуст."""
-    words = db.get_stop_words()
+class StopWordsStates(StatesGroup):
+    waiting_add = State()
+
+
+def _build_keyboard(words: list) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    # Кнопка удаления на каждое слово
+    for w in words:
+        short = w[:20] + "…" if len(w) > 20 else w
+        kb.button(text=f"❌ {short}", callback_data=f"sw_del|{w[:50]}")
+    kb.adjust(2)
+    # Нижние кнопки
+    kb.row(InlineKeyboardButton(text="➕ Добавить", callback_data="sw_add"))
+    kb.row(InlineKeyboardButton(text="◀ Главное меню", callback_data="sw_close"))
+    return kb.as_markup()
+
+
+def _build_text(words: list) -> str:
     if not words:
-        for w in _DEFAULT_STOP_WORDS:
-            db.add_stop_word(w)
-        log.info(f"Добавлено {len(_DEFAULT_STOP_WORDS)} дефолтных стоп-слов")
+        return "📋 <b>Стоп-слова</b>\n\nСписок пуст."
+    words_text = "\n".join(f"• {w}" for w in words)
+    return f"📋 <b>Стоп-слова</b> ({len(words)} шт.):\n\n{words_text}"
+
+
+async def _show_stopwords(target, user_id: int, state: FSMContext = None):
+    """Отправляет или редактирует сообщение со стоп-словами."""
+    words = db.get_stop_words()
+    text = _build_text(words)
+    kb = _build_keyboard(words)
+
+    existing_mid = _sw_msg_ids.get(user_id)
+    bot = target.bot if hasattr(target, "bot") else None
+
+    if existing_mid and bot:
+        try:
+            await bot.edit_message_text(
+                text, chat_id=target.chat.id,
+                message_id=existing_mid,
+                reply_markup=kb, parse_mode="HTML"
+            )
+            return
+        except Exception:
+            pass
+
+    sent = await target.answer(text, reply_markup=kb, parse_mode="HTML")
+    _sw_msg_ids[user_id] = sent.message_id
 
 
 @router.message(Command("stopwords"))
-async def cmd_stopwords(message: Message):
-    try:
-        words = db.get_stop_words()
-        if not words:
-            from aiogram.utils.keyboard import InlineKeyboardBuilder
-            kb = InlineKeyboardBuilder()
-            kb.button(text="◀ Главное меню", callback_data="stopwords_close")
-            await message.answer("📋 Стоп-слова: список пуст.\n\nДобавить: /stopwords_add слово", reply_markup=kb.as_markup())
-            return
-        words_text = "\n".join(f"• {w}" for w in words)
-        from aiogram.utils.keyboard import InlineKeyboardBuilder
-        kb = InlineKeyboardBuilder()
-        kb.button(text="◀ Главное меню", callback_data="stopwords_close")
-        await message.answer(
-            f"📋 Стоп-слова ({len(words)} шт.):\n\n{words_text}\n\n"
-            f"Добавить: /stopwords_add слово\n"
-            f"Удалить: /stopwords_del слово",
-            reply_markup=kb.as_markup()
-        )
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).error(f"[STOPWORDS] ошибка: {e}")
-        await message.answer(f"❌ Ошибка: {e}")
-
-
-@router.message(Command("stopwords_add"))
-async def cmd_stopwords_add(message: Message):
+async def cmd_stopwords(message: Message, state: FSMContext):
+    if message.from_user.id not in ADMIN_IDS:
+        return
+    await state.clear()
     try:
         await message.delete()
     except Exception:
         pass
-    if message.from_user.id not in ADMIN_IDS:
-        return
-
-    parts = message.text.split(maxsplit=1)
-    if len(parts) < 2:
-        await message.answer("❌ Укажите слово: <code>/stopwords_add слово</code>", parse_mode="HTML")
-        return
-
-    word = parts[1].strip().lower()
-    if db.add_stop_word(word):
-        await message.answer(f"✅ Стоп-слово <b>{word}</b> добавлено.", parse_mode="HTML")
-        log.info(f"Стоп-слово добавлено: {word}")
-    else:
-        await message.answer(f"⚠️ Слово <b>{word}</b> уже есть в списке.", parse_mode="HTML")
+    await _show_stopwords(message, message.from_user.id, state)
 
 
-@router.message(Command("stopwords_del"))
-async def cmd_stopwords_del(message: Message):
-    if message.from_user.id not in ADMIN_IDS:
-        return
+@router.callback_query(F.data == "sw_add")
+async def cb_sw_add(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(StopWordsStates.waiting_add)
+    await callback.answer()
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Отмена", callback_data="sw_cancel_add")]
+    ])
+    sent = await callback.message.answer(
+        "✍️ Введите стоп-слово или фразу.\n"
+        "Можно несколько через запятую:\n"
+        "<code>реклама, скидка, купить</code>",
+        parse_mode="HTML", reply_markup=kb
+    )
+    await state.update_data(prompt_mid=sent.message_id)
 
-    parts = message.text.split(maxsplit=1)
-    if len(parts) < 2:
-        await message.answer("❌ Укажите слово: <code>/stopwords_del слово</code>", parse_mode="HTML")
-        return
 
-    word = parts[1].strip().lower()
+@router.callback_query(F.data == "sw_cancel_add")
+async def cb_sw_cancel_add(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await callback.answer()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    await _show_stopwords(callback.message, callback.from_user.id)
+
+
+@router.message(StopWordsStates.waiting_add)
+async def handle_sw_add(message: Message, state: FSMContext):
+    user_id = message.from_user.id
+    data = await state.get_data()
+    await state.clear()
+
+    # Удаляем prompt и ввод пользователя
+    try:
+        await message.delete()
+    except Exception:
+        pass
+    prompt_mid = data.get("prompt_mid")
+    if prompt_mid:
+        try:
+            await message.bot.delete_message(message.chat.id, prompt_mid)
+        except Exception:
+            pass
+
+    # Парсим через запятую
+    raw = message.text.strip()
+    items = [w.strip().lower() for w in raw.split(",") if w.strip()]
+
+    added = []
+    dupes = []
+    for w in items:
+        if db.add_stop_word(w):
+            added.append(w)
+        else:
+            dupes.append(w)
+
+    if added:
+        log.info(f"Стоп-слова добавлены: {added}")
+
+    # Обновляем основное сообщение
+    await _show_stopwords(message, user_id)
+
+    # Краткий итог — исчезает через 4 сек
+    parts = []
+    if added:
+        parts.append(f"✅ Добавлено: {', '.join(added)}")
+    if dupes:
+        parts.append(f"⚠️ Уже есть: {', '.join(dupes)}")
+    if parts:
+        note = await message.answer("\n".join(parts))
+        asyncio.create_task(_delete_later(note, 4))
+
+
+@router.callback_query(F.data.startswith("sw_del|"))
+async def cb_sw_del(callback: CallbackQuery):
+    word = callback.data.split("|", 1)[1]
     if db.remove_stop_word(word):
-        await message.answer(f"✅ Стоп-слово <b>{word}</b> удалено.", parse_mode="HTML")
+        await callback.answer(f"Удалено: {word}")
         log.info(f"Стоп-слово удалено: {word}")
     else:
-        await message.answer(f"❌ Слово <b>{word}</b> не найдено в списке.", parse_mode="HTML")
+        await callback.answer("Не найдено", show_alert=True)
+        return
+    await _show_stopwords(callback.message, callback.from_user.id)
 
 
-@router.callback_query(lambda c: c.data == "stopwords_close")
-async def stopwords_close(callback: CallbackQuery, state: FSMContext):
+@router.callback_query(F.data == "sw_close")
+async def cb_sw_close(callback: CallbackQuery, state: FSMContext):
+    _sw_msg_ids.pop(callback.from_user.id, None)
     try:
         await callback.message.delete()
     except Exception:
@@ -118,3 +177,11 @@ async def stopwords_close(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     from handlers.start import show_main_menu
     await show_main_menu(callback.message, state)
+
+
+async def _delete_later(msg, seconds: int):
+    await asyncio.sleep(seconds)
+    try:
+        await msg.delete()
+    except Exception:
+        pass
