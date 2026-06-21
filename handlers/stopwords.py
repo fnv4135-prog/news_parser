@@ -88,23 +88,20 @@ async def cb_sw_add(callback: CallbackQuery, state: FSMContext):
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="❌ Отмена", callback_data="sw_cancel_add")]
     ])
-    sent = await callback.message.answer(
+    await callback.message.edit_text(
         "✍️ Введите стоп-слово или фразу.\n"
         "Можно несколько через запятую:\n"
         "<code>реклама, скидка, купить</code>",
         parse_mode="HTML", reply_markup=kb
     )
-    await state.update_data(prompt_mid=sent.message_id)
+    await state.update_data(msg_id=callback.message.message_id, chat_id=callback.message.chat.id)
 
 
 @router.callback_query(F.data == "sw_cancel_add")
 async def cb_sw_cancel_add(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     await callback.answer()
-    try:
-        await callback.message.delete()
-    except Exception:
-        pass
+    _sw_msg_ids[callback.from_user.id] = callback.message.message_id
     await _show_stopwords(callback.message, callback.from_user.id)
 
 
@@ -114,17 +111,15 @@ async def handle_sw_add(message: Message, state: FSMContext):
     data = await state.get_data()
     await state.clear()
 
-    # Удаляем prompt и ввод пользователя
+    # Удаляем сообщение пользователя
     try:
         await message.delete()
     except Exception:
         pass
-    prompt_mid = data.get("prompt_mid")
-    if prompt_mid:
-        try:
-            await message.bot.delete_message(message.chat.id, prompt_mid)
-        except Exception:
-            pass
+    # Восстанавливаем msg_id основного сообщения
+    msg_id = data.get("msg_id")
+    if msg_id:
+        _sw_msg_ids[user_id] = msg_id
 
     # Парсим через запятую
     raw = message.text.strip()
@@ -170,13 +165,13 @@ async def cb_sw_del(callback: CallbackQuery):
 @router.callback_query(F.data == "sw_close")
 async def cb_sw_close(callback: CallbackQuery, state: FSMContext):
     _sw_msg_ids.pop(callback.from_user.id, None)
+    await callback.answer()
     try:
         await callback.message.delete()
     except Exception:
         pass
-    await callback.answer()
     from handlers.start import show_main_menu
-    await show_main_menu(callback.message, state, edit=False)
+    await show_main_menu(callback.message, state)
 
 
 async def _delete_later(msg, seconds: int):
