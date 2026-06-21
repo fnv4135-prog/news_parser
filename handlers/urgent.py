@@ -154,10 +154,10 @@ async def show_urgent_post(message, index: int = 0, edit_msg=None):
         f"🔑 Ключевое слово: <b>{urgent_word}</b>"
     )
 
-    kb = build_urgent_keyboard(post['id'], index, total, has_image=bool(photo))
-
     media_urls = get_media_urls(post)
     photo = media_urls[0] if media_urls else post.get('image_url')
+
+    kb = build_urgent_keyboard(post['id'], index, total, has_image=bool(photo))
 
     if photo and os.path.isfile(str(photo)):
         await message.answer_photo(FSInputFile(photo), caption=text, reply_markup=kb, parse_mode="HTML")
