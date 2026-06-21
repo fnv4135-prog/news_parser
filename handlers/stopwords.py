@@ -47,14 +47,15 @@ def _build_text(words: list) -> str:
 
 async def _show_stopwords(target, user_id: int, state: FSMContext = None):
     """Отправляет или редактирует сообщение со стоп-словами."""
+    from bot_instance import get_bot
     words = db.get_stop_words()
     text = _build_text(words)
     kb = _build_keyboard(words)
 
     existing_mid = _sw_msg_ids.get(user_id)
-    bot = target.bot if hasattr(target, "bot") else None
+    bot = get_bot()
 
-    if existing_mid and bot:
+    if existing_mid:
         try:
             await bot.edit_message_text(
                 text, chat_id=target.chat.id,
@@ -176,7 +177,7 @@ async def cb_sw_close(callback: CallbackQuery, state: FSMContext):
         pass
     await callback.answer()
     from handlers.start import show_main_menu
-    await show_main_menu(callback.message, state)
+    await show_main_menu(callback.message, state, edit=False)
 
 
 async def _delete_later(msg, seconds: int):
