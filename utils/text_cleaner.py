@@ -24,6 +24,11 @@ _RE_MD_LINK_PIPE   = re.compile(r'\[([^\]]+)\|[^\]]+\]')
 _SIGNATURE_PHRASES = [
     r'источник\s*:',
     r'мы в макс', r'мы в max',
+    r'мы в мах',
+    r'канал в max', r'канал в мах', r'канал в макс',
+    r'для любителей экстрима.{0,30}мах',
+    r'для любителей экстрима.{0,30}max',
+    r'платим за эксклюзив',
     r'подписаться', r'подписывайтесь',
     r'поделиться новостью',
     r'читать далее', r'читать полностью',
@@ -180,9 +185,10 @@ def clean_text(text: str) -> str:
     if not text:
         return text
 
-    # Убираем Markdown bold/italic
-    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    # Убираем Markdown bold/italic и одиночные **
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text, flags=re.DOTALL)
     text = re.sub(r'__(.+?)__', r'\1', text)
+    text = re.sub(r'\*\*', '', text)
     lines = text.split('\n')
     cleaned: List[str] = []
 
