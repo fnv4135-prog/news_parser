@@ -164,13 +164,17 @@ class TelegramParser:
         if not message.video:
             return None
         try:
-            video = message.video
-            # Проверяем длительность и размер
-            if video.duration and video.duration > max_duration:
-                print(f"  ⏭ Видео слишком длинное: {video.duration}с > {max_duration}с")
+            video = message.video or message.document
+            if not video:
                 return None
-            if video.size and video.size > max_size_mb * 1024 * 1024:
-                print(f"  ⏭ Видео слишком большое: {video.size // 1024 // 1024}MB > {max_size_mb}MB")
+            # Проверяем длительность и размер (Document может не иметь duration)
+            duration = getattr(video, 'duration', None)
+            size = getattr(video, 'size', None)
+            if duration and duration > max_duration:
+                print(f"  ⏭ Видео слишком длинное: {duration}с > {max_duration}с")
+                return None
+            if size and size > max_size_mb * 1024 * 1024:
+                print(f"  ⏭ Видео слишком большое: {size // 1024 // 1024}MB > {max_size_mb}MB")
                 return None
             file_hash = hashlib.md5(f"{post_id}_video_{idx}".encode()).hexdigest()[:12]
             # Ищем уже скачанный файл с любым расширением
@@ -210,15 +214,16 @@ class TelegramParser:
                 print(f"  📷 Фото скачано: {os.path.basename(path)}")
 
             # Скачиваем видео если есть, иначе добавляем фото
-            if message.video:
+            # Скачиваем видео если есть, иначе используем фото
+            if message.video or (message.document and getattr(message.document, 'mime_type', '') and 'video' in message.document.mime_type):
                 video_path = await self._download_message_video(message, post_id, 0)
                 if video_path:
                     media_urls = [{'type': 'video', 'path': video_path}]
                     image_url = None
+                else:
+                    image_url = media_urls[0] if media_urls else None
             else:
                 image_url = media_urls[0] if media_urls else None
-                text = text.rstrip() + "\n\n🎬 К посту прикреплено видео"
-            
             return TGPost(
                 post_id=post_id,
                 title=title,

@@ -1,4 +1,5 @@
 import logging
+log = logging.getLogger(__name__)
 import asyncio
 import random
 import functools
