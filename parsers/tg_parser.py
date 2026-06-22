@@ -173,15 +173,20 @@ class TelegramParser:
                 print(f"  ⏭ Видео слишком большое: {video.size // 1024 // 1024}MB > {max_size_mb}MB")
                 return None
             file_hash = hashlib.md5(f"{post_id}_video_{idx}".encode()).hexdigest()[:12]
-            file_path = os.path.join(self.media_path, f"{file_hash}.mp4")
-            if not os.path.exists(file_path):
-                print(f"  🎬 Скачиваю видео {video.duration}с ({(video.size or 0) // 1024 // 1024}MB)...")
-                downloaded = await self.client.download_media(message.media, file=file_path)
-                if downloaded:
-                    print(f"  ✅ Видео скачано: {os.path.basename(file_path)}")
-                    return os.path.abspath(downloaded)
-            else:
-                return os.path.abspath(file_path)
+            # Ищем уже скачанный файл с любым расширением
+            existing = next((
+                os.path.join(self.media_path, f) for f in os.listdir(self.media_path)
+                if f.startswith(file_hash)
+            ), None)
+            if existing:
+                return os.path.abspath(existing)
+            # Даём Telethon самому определить расширение
+            file_prefix = os.path.join(self.media_path, file_hash)
+            print(f"  🎬 Скачиваю видео {video.duration}с ({(video.size or 0) // 1024 // 1024}MB)...")
+            downloaded = await self.client.download_media(message.media, file=file_prefix)
+            if downloaded:
+                print(f"  ✅ Видео скачано: {os.path.basename(downloaded)}")
+                return os.path.abspath(downloaded)
         except Exception as e:
             print(f"  ⚠️ Не удалось скачать видео: {e}")
         return None
