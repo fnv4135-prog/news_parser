@@ -217,6 +217,10 @@ def clean_text(text: str) -> str:
             empty_count = 0
             result_lines.append(line)
 
+    # Убираем пустые строки в конце
+    while result_lines and result_lines[-1].strip() == '':
+        result_lines.pop()
+
     return '\n'.join(result_lines).strip()
 
 
