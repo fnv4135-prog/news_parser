@@ -159,6 +159,33 @@ class TelegramParser:
             print(f"  ⚠️ Не удалось скачать фото: {e}")
         return None
 
+    async def _download_message_video(self, message, post_id: str, idx: int = 0, max_duration: int = 90, max_size_mb: int = 50) -> Optional[str]:
+        """Скачивает видео из сообщения. Возвращает абсолютный путь или None"""
+        if not message.video:
+            return None
+        try:
+            video = message.video
+            # Проверяем длительность и размер
+            if video.duration and video.duration > max_duration:
+                print(f"  ⏭ Видео слишком длинное: {video.duration}с > {max_duration}с")
+                return None
+            if video.size and video.size > max_size_mb * 1024 * 1024:
+                print(f"  ⏭ Видео слишком большое: {video.size // 1024 // 1024}MB > {max_size_mb}MB")
+                return None
+            file_hash = hashlib.md5(f"{post_id}_video_{idx}".encode()).hexdigest()[:12]
+            file_path = os.path.join(self.media_path, f"{file_hash}.mp4")
+            if not os.path.exists(file_path):
+                print(f"  🎬 Скачиваю видео {video.duration}с ({(video.size or 0) // 1024 // 1024}MB)...")
+                downloaded = await self.client.download_media(message.media, file=file_path)
+                if downloaded:
+                    print(f"  ✅ Видео скачано: {os.path.basename(file_path)}")
+                    return os.path.abspath(downloaded)
+            else:
+                return os.path.abspath(file_path)
+        except Exception as e:
+            print(f"  ⚠️ Не удалось скачать видео: {e}")
+        return None
+
     async def _message_to_post(self, message: Message, channel_name: str, channel_username: str) -> Optional[TGPost]:
         """Конвертируем одиночное сообщение в TGPost"""
         try:
@@ -177,10 +204,14 @@ class TelegramParser:
                 media_urls.append(path)
                 print(f"  📷 Фото скачано: {os.path.basename(path)}")
 
-            image_url = media_urls[0] if media_urls else None
-            
-            # Проверяем наличие видео
-            if message.video and text:
+            # Скачиваем видео если есть, иначе добавляем фото
+            if message.video:
+                video_path = await self._download_message_video(message, post_id, 0)
+                if video_path:
+                    media_urls = [{'type': 'video', 'path': video_path}]
+                    image_url = None
+            else:
+                image_url = media_urls[0] if media_urls else None
                 text = text.rstrip() + "\n\n🎬 К посту прикреплено видео"
             
             return TGPost(
@@ -231,10 +262,12 @@ class TelegramParser:
             if not text and not media_urls:
                 return None
 
-            # Проверяем наличие видео в альбоме
-            has_video = any(m.video for m in messages)
-            if has_video and text:
-                text = text.rstrip() + "\n\n🎬 К посту прикреплено видео"
+            # Скачиваем видео из альбома
+            for i, msg in enumerate(messages):
+                if msg.video:
+                    video_path = await self._download_message_video(msg, post_id, i)
+                    if video_path:
+                        media_urls.append({'type': 'video', 'path': video_path})
 
             image_url = media_urls[0] if media_urls else None
             return TGPost(

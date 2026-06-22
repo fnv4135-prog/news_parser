@@ -45,9 +45,9 @@ def _is_video_item(item) -> bool:
 
 
 def _get_media_id(item) -> str:
-    """Извлекает file_id/url из элемента media_urls"""
+    """Извлекает file_id/url/path из элемента media_urls"""
     if isinstance(item, dict):
-        return item.get('id', item.get('file_id', ''))
+        return item.get('path', item.get('id', item.get('file_id', '')))
     return item
 
 
