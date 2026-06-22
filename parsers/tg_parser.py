@@ -167,11 +167,16 @@ class TelegramParser:
             video = message.video or message.document
             if not video:
                 return None
-            # Проверяем длительность и размер (Document может не иметь duration)
-            duration = getattr(video, 'duration', None)
+            # Duration хранится в attributes (DocumentAttributeVideo)
+            from telethon.tl.types import DocumentAttributeVideo
+            duration = None
+            for attr in getattr(video, 'attributes', []):
+                if isinstance(attr, DocumentAttributeVideo):
+                    duration = attr.duration
+                    break
             size = getattr(video, 'size', None)
             if duration and duration > max_duration:
-                print(f"  ⏭ Видео слишком длинное: {duration}с > {max_duration}с")
+                print(f"  ⏭ Видео слишком длинное: {int(duration)}с > {max_duration}с")
                 return None
             if size and size > max_size_mb * 1024 * 1024:
                 print(f"  ⏭ Видео слишком большое: {size // 1024 // 1024}MB > {max_size_mb}MB")
