@@ -161,7 +161,7 @@ class TelegramParser:
 
     async def _download_message_video(self, message, post_id: str, idx: int = 0, max_duration: int = 90, max_size_mb: int = 50) -> Optional[str]:
         """Скачивает видео из сообщения. Возвращает абсолютный путь или None"""
-        if not message.video:
+        if not message.video and not (message.document and getattr(message.document, 'mime_type', '').startswith('video')):
             return None
         try:
             video = message.video or message.document
