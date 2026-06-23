@@ -64,6 +64,7 @@ def build_city_menu(folder_id: int, folder_name: str):
         [InlineKeyboardButton(text=f"🌙 Время плана: {plan_time}", callback_data=f"ap_plantime|{folder_id}")],
         [InlineKeyboardButton(text=f"☀️ Время сводки: {report_time}", callback_data=f"ap_reporttime|{folder_id}")],
         [InlineKeyboardButton(text="📅 Посты на сегодня", callback_data=f"ap_review|{folder_id}|0")],
+        [InlineKeyboardButton(text="🔄 Пересформировать план", callback_data=f"ap_rebuild|{folder_id}")],
         [InlineKeyboardButton(text="◀ Назад", callback_data="ap_back")],
     ])
     return text, kb
@@ -97,6 +98,38 @@ async def cmd_autopilot(message: Message, state: FSMContext):
         await message.delete()
     except Exception:
         pass
+
+
+@router.callback_query(F.data.startswith("ap_rebuild|"))
+async def ap_rebuild(callback: CallbackQuery):
+    folder_id = int(callback.data.split("|")[1])
+    folder = db.get_folder_by_id(folder_id)
+    folder_name = folder['name'] if folder else f"Город #{folder_id}"
+    await callback.answer("⏳ Пересформирую план...")
+
+    # Удаляем текущий pending план
+    import sqlite3 as _sq
+    conn = _sq.connect(db.db_path)
+    deleted = conn.execute(
+        "DELETE FROM scheduled_posts WHERE folder_id=? AND status='pending'",
+        (folder_id,)
+    ).rowcount
+    conn.commit()
+    conn.close()
+
+    # Строим новый план
+    from scheduler.autopilot_jobs import build_autopilot_plan
+    result = await build_autopilot_plan(folder_id)
+
+    if result:
+        scheduled_ids, _ = result
+        await callback.answer(f"✅ План пересформирован: {len(scheduled_ids)} постов", show_alert=True)
+    else:
+        await callback.answer(f"⚠️ Не удалось сформировать план (нет постов?)", show_alert=True)
+
+    # Обновляем меню
+    text, kb = build_city_menu(folder_id, folder_name)
+    await callback.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
 
 
 @router.callback_query(F.data == "ap_back")
