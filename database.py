@@ -262,9 +262,19 @@ class Database:
             # Обратная совместимость: если передан image_url, а media_urls нет — создаём
             if not media_urls and image_url:
                 media_urls = [image_url]
-            # Если есть media_urls — первое пишем и в image_url (для старых мест кода)
-            if media_urls and not image_url:
-                image_url = media_urls[0]
+            # Нормализуем media_urls — элементы могут быть строками или dict {'type','path'}
+            if media_urls:
+                normalized = []
+                for item in media_urls:
+                    if isinstance(item, dict):
+                        normalized.append(item)
+                    else:
+                        normalized.append(item)
+                media_urls = normalized
+                # image_url — первый элемент (строка или path из dict)
+                if not image_url:
+                    first = media_urls[0]
+                    image_url = first.get('path') if isinstance(first, dict) else first
             media_urls_json = json.dumps(media_urls) if media_urls else None
 
             cursor.execute('''
