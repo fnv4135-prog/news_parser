@@ -191,7 +191,7 @@ class TelegramParser:
                 return os.path.abspath(existing)
             # Даём Telethon самому определить расширение
             file_prefix = os.path.join(self.media_path, file_hash)
-            print(f"  🎬 Скачиваю видео {video.duration}с ({(video.size or 0) // 1024 // 1024}MB)...")
+            print(f"  🎬 Скачиваю видео {int(duration or 0)}с ({(size or 0) // 1024 // 1024}MB)...")
             downloaded = await self.client.download_media(message.media, file=file_prefix)
             if downloaded:
                 print(f"  ✅ Видео скачано: {os.path.basename(downloaded)}")

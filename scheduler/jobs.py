@@ -425,35 +425,39 @@ async def check_urgent_notify():
             text = f"⚡️ Срочных новостей: <b>{count}</b>\n\nНажмите /urgent для просмотра"
             for admin_id in ADMIN_IDS:
                 try:
-                    existing_msg_id = _urgent_msg_ids.get(admin_id)
-                    if existing_msg_id:
+                    key = f"urgent_{admin_id}"
+                    saved = db.get_bot_message(key)
+                    if saved:
                         try:
                             await bot.edit_message_text(
                                 chat_id=admin_id,
-                                message_id=existing_msg_id,
+                                message_id=saved['message_id'],
                                 text=text,
                                 parse_mode="HTML"
                             )
                             continue
                         except Exception:
-                            _urgent_msg_ids.pop(admin_id, None)
+                            db.delete_bot_message(key)
                     msg = await bot.send_message(
                         chat_id=admin_id,
                         text=text,
                         parse_mode="HTML",
                         disable_notification=True
                     )
-                    _urgent_msg_ids[admin_id] = msg.message_id
+                    db.save_bot_message(key, admin_id, msg.message_id)
                 except Exception as e:
                     log.error(f"[URGENT] check_urgent_notify админ {admin_id}: {e}")
         else:
-            # Срочных нет — удаляем уведомление
-            for admin_id in list(_urgent_msg_ids.keys()):
-                try:
-                    await bot.delete_message(admin_id, _urgent_msg_ids[admin_id])
-                except Exception:
-                    pass
-                _urgent_msg_ids.pop(admin_id, None)
+            bot = get_bot()
+            for admin_id in ADMIN_IDS:
+                key = f"urgent_{admin_id}"
+                saved = db.get_bot_message(key)
+                if saved:
+                    try:
+                        await bot.delete_message(saved['chat_id'], saved['message_id'])
+                    except Exception:
+                        pass
+                    db.delete_bot_message(key)
     except Exception as e:
         log.error(f"[URGENT] check_urgent_notify: {e}")
 

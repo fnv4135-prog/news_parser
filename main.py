@@ -40,8 +40,24 @@ dp.include_routers(
     autopilot.router,
 )
 
+async def on_startup():
+    """При старте бота — чистим невалидные сообщения из прошлой сессии."""
+    from database import Database
+    from config import ADMIN_IDS
+    db = Database()
+    for admin_id in ADMIN_IDS:
+        for key in [f"urgent_{admin_id}", f"plan_summary_{admin_id}"]:
+            saved = db.get_bot_message(key)
+            if saved:
+                try:
+                    await bot.delete_message(saved['chat_id'], saved['message_id'])
+                except Exception:
+                    pass
+                db.delete_bot_message(key)
+
 async def main():
     logging.basicConfig(level=logging.INFO)
+    await on_startup()
     setup_scheduler()
     await dp.start_polling(bot)
 

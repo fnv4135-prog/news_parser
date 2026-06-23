@@ -501,6 +501,37 @@ class Database:
         conn.close()
         return count
 
+    # ------------------------------------------------------------------
+    # Постоянные сообщения бота
+    # ------------------------------------------------------------------
+    def save_bot_message(self, key: str, chat_id: int, message_id: int):
+        """Сохраняет message_id постоянного сообщения бота."""
+        conn = self.get_conn()
+        conn.execute(
+            "INSERT OR REPLACE INTO bot_messages (key, chat_id, message_id, updated_at) VALUES (?, ?, ?, datetime('now'))",
+            (key, chat_id, message_id)
+        )
+        conn.commit()
+        conn.close()
+
+    def get_bot_message(self, key: str) -> dict:
+        """Возвращает {chat_id, message_id} или None."""
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        cursor.execute("SELECT chat_id, message_id FROM bot_messages WHERE key=?", (key,))
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            return {'chat_id': row[0], 'message_id': row[1]}
+        return None
+
+    def delete_bot_message(self, key: str):
+        """Удаляет запись о сообщении."""
+        conn = self.get_conn()
+        conn.execute("DELETE FROM bot_messages WHERE key=?", (key,))
+        conn.commit()
+        conn.close()
+
     def get_urgent_count_recent(self, minutes: int = 30) -> int:
         """Количество срочных постов за последние N минут со статусом new."""
         conn = self.get_conn()

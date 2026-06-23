@@ -9,11 +9,9 @@ from config import ADMIN_IDS
 
 db = Database()
 
-# Хранилище message_id сводки: admin_id -> message_id
-# Сбрасывается при новом дне
-_plan_summary: dict = {}   # admin_id -> message_id
-_plan_summary_date: str = ""  # дата последней сводки YYYY-MM-DD
-_plan_cities_count: int = 0   # сколько городов уже в сводке
+# Счётчик городов в сводке (сбрасывается при новом дне)
+_plan_summary_date: str = ""
+_plan_cities_count: int = 0
 
 
 def _normalize_title(text: str) -> str:
@@ -138,7 +136,7 @@ async def build_autopilot_plan(folder_id: int):
 
 async def send_morning_report(folder_id: int):
     """Обновляет единую сводку плана для всех городов."""
-    global _plan_summary, _plan_summary_date, _plan_cities_count
+    global _plan_summary_date, _plan_cities_count
 
     settings = db.get_autopilot_settings(folder_id)
     if not settings or not settings['is_enabled']:
@@ -153,7 +151,6 @@ async def send_morning_report(folder_id: int):
 
     # Сброс при новом дне
     if _plan_summary_date != today:
-        _plan_summary = {}
         _plan_summary_date = today
         _plan_cities_count = 0
 
@@ -179,21 +176,20 @@ async def send_morning_report(folder_id: int):
 
     for admin_id in ADMIN_IDS:
         try:
-            if admin_id in _plan_summary:
-                # Редактируем существующее
+            key = f"plan_summary_{admin_id}"
+            saved = db.get_bot_message(key)
+            if saved:
                 try:
                     await bot.edit_message_text(
                         text, chat_id=admin_id,
-                        message_id=_plan_summary[admin_id],
+                        message_id=saved['message_id'],
                         reply_markup=kb, parse_mode="HTML"
                     )
+                    continue
                 except Exception:
-                    # Если не удалось отредактировать — шлём новое
-                    msg = await bot.send_message(admin_id, text, reply_markup=kb, parse_mode="HTML")
-                    _plan_summary[admin_id] = msg.message_id
-            else:
-                msg = await bot.send_message(admin_id, text, reply_markup=kb, parse_mode="HTML")
-                _plan_summary[admin_id] = msg.message_id
+                    db.delete_bot_message(key)
+            msg = await bot.send_message(admin_id, text, reply_markup=kb, parse_mode="HTML")
+            db.save_bot_message(key, admin_id, msg.message_id)
         except Exception as e:
             logging.error(f"Ошибка отправки сводки админу {admin_id}: {e}")
 
