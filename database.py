@@ -406,17 +406,54 @@ class Database:
         }
 
     def get_protected_media_paths(self) -> set:
-        """Возвращает пути медиафайлов, которые нужны pending scheduled_posts."""
+        """Возвращает пути медиафайлов которые нельзя удалять."""
+        import json as _json
         conn = self.get_conn()
         cursor = conn.cursor()
+        paths = set()
+
+        # 1. image_url из pending scheduled_posts
         cursor.execute("""
-            SELECT image_url FROM scheduled_posts
+            SELECT image_url, media_list FROM scheduled_posts
             WHERE status = 'pending'
-            AND image_url IS NOT NULL AND image_url != ''
+            AND (image_url IS NOT NULL OR media_list IS NOT NULL)
         """)
-        paths = {row[0] for row in cursor.fetchall()}
+        for row in cursor.fetchall():
+            if row[0]:
+                paths.add(row[0])
+            if row[1]:
+                try:
+                    for item in _json.loads(row[1]):
+                        if isinstance(item, dict):
+                            paths.add(item.get('path', ''))
+                        else:
+                            paths.add(item)
+                except Exception:
+                    pass
+
+        # 2. media_urls из непубликованных постов (is_posted=0)
+        cursor.execute("""
+            SELECT image_url, media_urls FROM posts
+            WHERE is_posted=0
+            AND (image_url IS NOT NULL OR media_urls IS NOT NULL)
+        """)
+        for row in cursor.fetchall():
+            if row[0]:
+                paths.add(row[0])
+            if row[1]:
+                try:
+                    for item in _json.loads(row[1]):
+                        if isinstance(item, dict):
+                            paths.add(item.get('path', ''))
+                        else:
+                            paths.add(item)
+                except Exception:
+                    pass
+
         conn.close()
-        return paths
+        paths.discard('')
+        paths.discard(None)
+        return {p for p in paths if p}
 
     # ------------------------------------------------------------------
     # Стоп-слова
