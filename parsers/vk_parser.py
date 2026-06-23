@@ -54,6 +54,63 @@ class VKParser:
         if self.session:
             await self.session.close()
 
+    async def _download_vk_video(self, owner_id: int, video_id: int, access_key: str,
+                                   post_id: str, max_duration: int = 90, max_size_mb: int = 50) -> Optional[str]:
+        """Скачивает видео из VK. Возвращает локальный путь или None."""
+        try:
+            # Получаем прямые ссылки через video.get
+            videos_str = f"{owner_id}_{video_id}"
+            params = {"videos": videos_str, "extended": 1}
+            if access_key:
+                params["access_key"] = access_key
+            response = await self._api_call("video.get", params)
+            if not response:
+                return None
+            items = response.get("items", [])
+            if not items:
+                return None
+            video = items[0]
+            duration = video.get("duration", 0)
+            if duration > max_duration:
+                print(f"  ⏭ VK видео слишком длинное: {duration}с > {max_duration}с")
+                return None
+            files = video.get("files", {})
+            # Берём лучшее доступное качество до 480p
+            video_url = (files.get("mp4_480") or files.get("mp4_360") or
+                        files.get("mp4_240") or files.get("mp4_144"))
+            if not video_url:
+                print(f"  ⚠️ VK видео: нет прямых ссылок")
+                return None
+            # Скачиваем
+            file_hash = __import__('hashlib').md5(f"{post_id}_vkvideo".encode()).hexdigest()[:12]
+            existing = next((
+                __import__('os').path.join(self.media_path, f)
+                for f in __import__('os').listdir(self.media_path)
+                if f.startswith(file_hash)
+            ), None)
+            if existing:
+                return __import__('os').path.abspath(existing)
+            file_path = __import__('os').path.join(self.media_path, f"{file_hash}.mp4")
+            print(f"  🎬 Скачиваю VK видео {duration}с...")
+            async with self.session.get(video_url, timeout=120) as resp:
+                if resp.status != 200:
+                    print(f"  ⚠️ VK видео HTTP {resp.status}")
+                    return None
+                size = 0
+                with open(file_path, 'wb') as f:
+                    async for chunk in resp.content.iter_chunked(1024 * 1024):
+                        size += len(chunk)
+                        if size > max_size_mb * 1024 * 1024:
+                            print(f"  ⏭ VK видео слишком большое: >  {max_size_mb}MB")
+                            __import__('os').remove(file_path)
+                            return None
+                        f.write(chunk)
+            print(f"  ✅ VK видео скачано: {__import__('os').path.basename(file_path)}")
+            return __import__('os').path.abspath(file_path)
+        except Exception as e:
+            print(f"  ⚠️ Не удалось скачать VK видео: {e}")
+            return None
+
     async def _api_call(self, method: str, params: dict, retries: int = 3) -> Optional[dict]:
         """Вызов VK API с обработкой rate limit"""
         params["access_token"] = self.token
@@ -208,13 +265,27 @@ class VKParser:
             # Пропускаем репосты без текста
             if not text and "copy_history" in item:
                 return None
-            
-            # Проверяем наличие видео
-            has_video = any(att["type"] == "video" for att in attachments)
-            if has_video and text:
-                text = text.rstrip() + "\n\n🎬 К посту прикреплено видео"
-            
-            image_url = media_urls[0] if media_urls else None
+
+            # Скачиваем видео если есть
+            for att in attachments:
+                if att["type"] == "video":
+                    v = att["video"]
+                    video_path = await self._download_vk_video(
+                        owner_id=v.get("owner_id"),
+                        video_id=v.get("id"),
+                        access_key=v.get("access_key", ""),
+                        post_id=post_id
+                    )
+                    if video_path:
+                        media_urls.append({'type': 'video', 'path': video_path})
+                    break
+            image_url = None
+            for m in media_urls:
+                if isinstance(m, dict):
+                    image_url = m.get('path')
+                else:
+                    image_url = m
+                break
             return VKPost(
                 post_id=post_id,
                 title=title,
