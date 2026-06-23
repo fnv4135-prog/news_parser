@@ -378,6 +378,17 @@ def cleanup_old_posts():
         )
 
     # Очистка медиафайлов
+    import json as _json
+    # Все медиапути из БД
+    all_media_paths = set()
+    for row in db.get_conn().execute("SELECT image_url, media_urls FROM posts"):
+        if row[0]: all_media_paths.add(os.path.abspath(row[0]))
+        if row[1]:
+            try:
+                for item in _json.loads(row[1]):
+                    p = item.get("path","") if isinstance(item, dict) else item
+                    if p: all_media_paths.add(os.path.abspath(p))
+            except: pass
     protected = db.get_protected_media_paths()
     deleted_files = 0
 
@@ -388,18 +399,21 @@ def cleanup_old_posts():
             abs_path = os.path.abspath(filepath)
             if abs_path in protected:
                 continue
-            # Удаляем файл если его нет в image_url ни одного оставшегося поста/scheduled
-            # Проще: удаляем всё что старше 3 дней по mtime
+            # Удаляем осиротевшие файлы сразу, остальные через 24ч
             try:
-                age_days = (time.time() - os.path.getmtime(filepath)) / 86400
+                age_hours = (time.time() - os.path.getmtime(filepath)) / 3600
             except OSError:
                 continue
-            if age_days > 3:
-                try:
-                    os.remove(filepath)
-                    deleted_files += 1
-                except OSError:
-                    pass
+            if abs_path not in all_media_paths:
+                # Осиротевший — удаляем сразу
+                pass
+            elif age_hours < 24:
+                continue
+            try:
+                os.remove(filepath)
+                deleted_files += 1
+            except OSError:
+                pass
 
     if deleted_files > 0:
         logging.info(f"Очистка медиа: удалено {deleted_files} файлов")
