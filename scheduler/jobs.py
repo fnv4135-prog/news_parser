@@ -443,19 +443,10 @@ async def check_urgent_notify():
                     saved = db.get_bot_message(key)
                     if saved:
                         try:
-                            await bot.edit_message_text(
-                                chat_id=admin_id,
-                                message_id=saved['message_id'],
-                                text=text,
-                                parse_mode="HTML"
-                            )
-                            continue
-                        except Exception as edit_err:
-                            err_str = str(edit_err)
-                            if 'message is not modified' in err_str:
-                                continue  # текст не изменился — ок
-                            log.warning(f"[URGENT] edit failed: {edit_err}, создаём новое")
-                            db.delete_bot_message(key)
+                            await bot.delete_message(chat_id=admin_id, message_id=saved['message_id'])
+                        except Exception:
+                            pass
+                        db.delete_bot_message(key)
                     msg = await bot.send_message(
                         chat_id=admin_id,
                         text=text,
