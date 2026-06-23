@@ -450,7 +450,11 @@ async def check_urgent_notify():
                                 parse_mode="HTML"
                             )
                             continue
-                        except Exception:
+                        except Exception as edit_err:
+                            err_str = str(edit_err)
+                            if 'message is not modified' in err_str:
+                                continue  # текст не изменился — ок
+                            log.warning(f"[URGENT] edit failed: {edit_err}, создаём новое")
                             db.delete_bot_message(key)
                     msg = await bot.send_message(
                         chat_id=admin_id,
