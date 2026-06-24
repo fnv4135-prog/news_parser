@@ -155,14 +155,20 @@ async def show_urgent_post(message, index: int = 0, edit_msg=None):
     )
 
     media_urls = get_media_urls(post)
-    photo = media_urls[0] if media_urls else post.get('image_url')
+    first_media = media_urls[0] if media_urls else post.get('image_url')
 
-    kb = build_urgent_keyboard(post['id'], index, total, has_image=bool(photo))
+    # Определяем тип медиа
+    is_video = isinstance(first_media, dict) and first_media.get('type') == 'video'
+    media_path = first_media.get('path') if isinstance(first_media, dict) else first_media
 
-    if photo and os.path.isfile(str(photo)):
-        await message.answer_photo(FSInputFile(photo), caption=text, reply_markup=kb, parse_mode="HTML")
-    elif photo:
-        await message.answer_photo(photo, caption=text, reply_markup=kb, parse_mode="HTML")
+    kb = build_urgent_keyboard(post['id'], index, total, has_image=bool(media_path))
+
+    if media_path and is_video and os.path.isfile(str(media_path)):
+        await message.answer_video(FSInputFile(media_path), caption=text, reply_markup=kb, parse_mode="HTML")
+    elif media_path and os.path.isfile(str(media_path)):
+        await message.answer_photo(FSInputFile(media_path), caption=text, reply_markup=kb, parse_mode="HTML")
+    elif media_path and not is_video:
+        await message.answer_photo(media_path, caption=text, reply_markup=kb, parse_mode="HTML")
     else:
         await message.answer(text, reply_markup=kb, parse_mode="HTML")
 
