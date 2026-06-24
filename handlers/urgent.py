@@ -144,7 +144,7 @@ async def show_urgent_post(message, index: int = 0, edit_msg=None):
 
     folder = db.get_folder_by_id(post.get('folder_id'))
     city = folder['name'] if folder else 'Неизвестный город'
-    text_preview = (post.get('text') or '')[:800]
+    text_preview = (post.get('text') or '')[:950]
     urgent_word = post.get('urgent_word', '')
 
     text = (
