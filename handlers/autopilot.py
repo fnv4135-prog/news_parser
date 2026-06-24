@@ -354,12 +354,16 @@ async def _show_review(message, callback, folder_id: int, index: int):
     post = db.get_post_by_id(sch['post_id']) if sch.get('post_id') else None
     image_url = sch.get('image_url') or (post.get('image_url') if post else None)
     media_urls = get_media_urls(post) if post else []
-    photo = media_urls[0] if media_urls else image_url
-    if photo and os.path.isfile(str(photo)):
-        from aiogram.types import FSInputFile
-        await message.answer_photo(FSInputFile(photo), caption=text, reply_markup=kb, parse_mode="HTML")
-    elif photo:
-        await message.answer_photo(photo, caption=text, reply_markup=kb, parse_mode="HTML")
+    first_media = media_urls[0] if media_urls else image_url
+    is_video = isinstance(first_media, dict) and first_media.get('type') == 'video'
+    media_path = first_media.get('path') if isinstance(first_media, dict) else first_media
+    from aiogram.types import FSInputFile
+    if media_path and is_video and os.path.isfile(str(media_path)):
+        await message.answer_video(FSInputFile(media_path), caption=text, reply_markup=kb, parse_mode="HTML")
+    elif media_path and os.path.isfile(str(media_path)):
+        await message.answer_photo(FSInputFile(media_path), caption=text, reply_markup=kb, parse_mode="HTML")
+    elif media_path and not is_video:
+        await message.answer_photo(media_path, caption=text, reply_markup=kb, parse_mode="HTML")
     else:
         await message.answer(text, reply_markup=kb, parse_mode="HTML")
 
@@ -421,25 +425,18 @@ async def ap_review(callback: CallbackQuery):
     post = db.get_post_by_id(sch['post_id']) if sch.get('post_id') else None
     image_url = sch.get('image_url') or (post.get('image_url') if post else None)
     media_urls = get_media_urls(post) if post else []
-    photo = media_urls[0] if media_urls else image_url
-
-    try:
-        await callback.message.delete()
-    except Exception:
-        pass
-
-    if photo and os.path.isfile(str(photo)):
-        from aiogram.types import FSInputFile
-        await callback.message.answer_photo(
-            FSInputFile(photo), caption=text, reply_markup=kb, parse_mode="HTML"
-        )
-    elif photo:
-        await callback.message.answer_photo(
-            photo, caption=text, reply_markup=kb, parse_mode="HTML"
-        )
+    first_media = media_urls[0] if media_urls else image_url
+    is_video = isinstance(first_media, dict) and first_media.get('type') == 'video'
+    media_path = first_media.get('path') if isinstance(first_media, dict) else first_media
+    from aiogram.types import FSInputFile
+    if media_path and is_video and os.path.isfile(str(media_path)):
+        await callback.message.answer_video(FSInputFile(media_path), caption=text, reply_markup=kb, parse_mode="HTML")
+    elif media_path and os.path.isfile(str(media_path)):
+        await callback.message.answer_photo(FSInputFile(media_path), caption=text, reply_markup=kb, parse_mode="HTML")
+    elif media_path and not is_video:
+        await callback.message.answer_photo(media_path, caption=text, reply_markup=kb, parse_mode="HTML")
     else:
         await callback.message.answer(text, reply_markup=kb, parse_mode="HTML")
-    await callback.answer()
     await callback.answer()
 
 
