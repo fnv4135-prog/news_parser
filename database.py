@@ -869,10 +869,12 @@ class Database:
         """Получить посты, время которых уже наступило (для отправки)"""
         conn = self.get_conn()
         cursor = conn.cursor()
+        from datetime import timedelta
+        now_msk = datetime.utcnow() + timedelta(hours=3)
         cursor.execute('''
             SELECT * FROM scheduled_posts 
             WHERE status = 'pending' AND scheduled_at <= ?
-        ''', (datetime.now(),))
+        ''', (now_msk,))
         columns = [desc[0] for desc in cursor.description]
         posts = []
         for row in cursor.fetchall():
