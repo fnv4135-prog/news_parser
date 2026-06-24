@@ -31,7 +31,7 @@ def build_city_keyboard():
             text=f"{icon} {f['name']}",
             callback_data=f"ap_city|{f['id']}"
         )
-    builder.button(text="❌ Закрыть", callback_data="ap_close")
+    builder.button(text="◀ Главное меню", callback_data="ap_close")
     builder.adjust(2)
     return builder.as_markup()
 
@@ -150,6 +150,16 @@ async def ap_back(callback: CallbackQuery, state: FSMContext):
         reply_markup=build_city_keyboard()
     )
     await callback.answer()
+
+
+@router.callback_query(F.data == "ap_back_to_today")
+async def ap_back_to_today(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    await cmd_today(callback.message)
 
 
 @router.callback_query(F.data == "ap_close")
@@ -377,8 +387,9 @@ def build_review_keyboard(folder_id: int, index: int, total: int, scheduled_id: 
         builder.button(text=f"Следующий ({index + 2}/{total}) ➡️", callback_data=f"ap_review|{folder_id}|{index + 1}")
     else:
         builder.button(text="◀ К первому", callback_data=f"ap_review|{folder_id}|0")
+    builder.button(text="◀ К городам", callback_data="ap_back_to_today")
     builder.button(text="❌ Закрыть", callback_data="ap_close")
-    builder.adjust(2, 1, 1)
+    builder.adjust(2, 1, 1, 2)
     return builder.as_markup()
 
 
