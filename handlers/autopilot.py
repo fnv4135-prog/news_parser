@@ -353,7 +353,7 @@ async def _show_review(message, callback, folder_id: int, index: int):
     from datetime import timedelta
     sched_msk = sched_time + timedelta(hours=3)
     time_str = sched_msk.strftime("%H:%M")
-    text_preview = (sch['text'] or '')[:300]
+    text_preview = (sch['text'] or '')[:900]
     text = (
         f"📋 {folder_name} — пост {index + 1}/{total}\n"
         f"🕐 Слот: {time_str}\n\n"
@@ -395,6 +395,10 @@ def build_review_keyboard(folder_id: int, index: int, total: int, scheduled_id: 
 
 @router.callback_query(F.data.startswith("ap_review|"))
 async def ap_review(callback: CallbackQuery):
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     parts = callback.data.split("|")
     folder_id = int(parts[1])
     index = int(parts[2])
@@ -421,7 +425,7 @@ async def ap_review(callback: CallbackQuery):
     sched_msk = sched_time + timedelta(hours=3)
     time_str = sched_msk.strftime("%H:%M")
 
-    text_preview = (sch['text'] or '')[:300]
+    text_preview = (sch['text'] or '')[:900]
 
     text = (
         f"📋 {folder_name} — пост {index + 1}/{total}\n"
