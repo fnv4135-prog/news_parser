@@ -171,7 +171,7 @@ async def send_morning_report(folder_id: int):
 
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📋 Подробнее", switch_inline_query_current_chat="/today")]
+        [InlineKeyboardButton(text="📋 Подробнее", callback_data="plan_today")]
     ])
 
     for admin_id in ADMIN_IDS:

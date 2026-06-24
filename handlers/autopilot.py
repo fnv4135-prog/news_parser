@@ -132,6 +132,16 @@ async def ap_rebuild(callback: CallbackQuery):
     await callback.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
 
 
+@router.callback_query(F.data == "plan_today")
+async def cb_plan_today(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    await cmd_today(callback.message)
+
+
 @router.callback_query(F.data == "ap_back")
 async def ap_back(callback: CallbackQuery, state: FSMContext):
     await state.clear()
