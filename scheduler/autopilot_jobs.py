@@ -42,18 +42,28 @@ def _build_plan(folder_id: int, posts_per_day: int, slots: List[str]) -> List[Di
     return selected
 
 
-def _slots_to_datetimes(slots: List[str], now_utc: datetime) -> List[datetime]:
+def _slots_to_datetimes(slots: List[str], now_utc: datetime, force_tomorrow: bool = False) -> List[datetime]:
     """
-    Переводит список слотов ['09:00', '12:00', ...] в datetime UTC на сегодня.
+    Переводит список слотов ['09:00', '12:00', ...] в datetime UTC.
     Слоты в МСК (UTC+3).
+    force_tomorrow=True — все слоты на завтра (для вечернего планировщика).
     """
     result = []
+    # Определяем базовую дату МСК
+    now_msk = now_utc + timedelta(hours=3)
+    if force_tomorrow:
+        base_date = (now_msk + timedelta(days=1)).date()
+    else:
+        base_date = now_msk.date()
+
     for slot in slots:
         h, m = map(int, slot.split(":"))
-        # Слот в МСК (UTC+3) → UTC
-        dt_utc = now_utc.replace(hour=h, minute=m, second=0, microsecond=0) - timedelta(hours=3)
-        # Корректируем дату если слот уже прошёл — ставим на завтра
-        if dt_utc <= now_utc:
+        # Собираем datetime в МСК и переводим в UTC
+        from datetime import datetime as dt
+        dt_msk = dt.combine(base_date, dt.min.time().replace(hour=h, minute=m))
+        dt_utc = dt_msk - timedelta(hours=3)
+        # Если не force_tomorrow и слот уже прошёл — ставим на завтра
+        if not force_tomorrow and dt_utc <= now_utc:
             dt_utc += timedelta(days=1)
         result.append(dt_utc)
     return result
@@ -112,7 +122,10 @@ async def build_autopilot_plan(folder_id: int):
 
     # Распределяем по слотам
     now_utc = datetime.utcnow()
-    slot_times = _slots_to_datetimes(free_slots[:len(posts)], now_utc)
+    # Если plan_time вечером (>=18:00 МСК) — планируем на завтра
+    now_msk = now_utc + timedelta(hours=3)
+    force_tomorrow = now_msk.hour >= 18
+    slot_times = _slots_to_datetimes(free_slots[:len(posts)], now_utc, force_tomorrow=force_tomorrow)
 
     scheduled_ids = []
     for post, slot_time in zip(posts, slot_times):
