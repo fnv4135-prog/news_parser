@@ -88,6 +88,11 @@ async def build_autopilot_plan(folder_id: int):
     # Занятые слоты сегодня
     occupied = db.get_scheduled_slots_today(folder_id)
 
+    # Защита от дублей
+    if len(occupied) >= posts_per_day:
+        logging.info(f"Автопилот [{folder_name}]: план уже полный ({len(occupied)}/{posts_per_day})")
+        return
+
     # Свободные слоты
     free_slots = [s for s in slots if s not in occupied]
     if not free_slots:
