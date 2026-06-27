@@ -1107,14 +1107,16 @@ class Database:
         return posts
 
     def get_scheduled_slots_today(self, folder_id: int) -> List[str]:
-        """Уже занятые слоты сегодня для города (формат HH:MM)"""
+        """Уже занятые слоты сегодня для города (формат HH:MM МСК)"""
         conn = self.get_conn()
         cursor = conn.cursor()
+        # scheduled_at хранится в МСК, сравниваем с МСК датой
         cursor.execute("""
             SELECT scheduled_at FROM scheduled_posts
             WHERE folder_id = ? AND status = 'pending'
-              AND date(scheduled_at) = date('now')
+              AND date(scheduled_at) = date('now', '+3 hours')
         """, (folder_id,))
         rows = cursor.fetchall()
         conn.close()
+        # Возвращаем время в МСК (scheduled_at уже в МСК)
         return [row[0][11:16] for row in rows if row[0]]
