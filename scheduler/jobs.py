@@ -407,7 +407,7 @@ def cleanup_old_posts():
             if abs_path not in all_media_paths:
                 # Осиротевший — удаляем сразу
                 pass
-            elif age_hours < 24:
+            elif age_hours < 48:
                 continue
             try:
                 os.remove(filepath)
