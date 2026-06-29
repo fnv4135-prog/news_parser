@@ -20,6 +20,7 @@ from scheduler.autopilot_jobs import run_autopilot_planner, run_autopilot_report
 
 db = Database()
 scheduler = AsyncIOScheduler()
+_tg_parser = None  # Синглтон TelegramParser — кеш entities живёт между запусками
 
 last_tg_parse_time = None  # Время последнего TG парсинга
 _urgent_msg_ids = {}  # admin_id -> message_id уведомления о срочных
@@ -105,7 +106,12 @@ async def parse_telegram_and_save():
     if not tg_sources:
         logging.info("Нет Telegram источников для парсинга")
         return
-    async with TelegramParser(int(api_id), api_hash, phone, media_path=MEDIA_PATH) as parser:
+    global _tg_parser
+    if _tg_parser is None or not _tg_parser.client or not _tg_parser.client.is_connected():
+        _tg_parser = TelegramParser(int(api_id), api_hash, phone, media_path=MEDIA_PATH)
+        await _tg_parser.__aenter__()
+    parser = _tg_parser
+    if True:  # заменяет async with
         new_count = 0
         skipped = 0
         for src in tg_sources:
