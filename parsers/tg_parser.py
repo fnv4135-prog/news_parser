@@ -36,6 +36,11 @@ class TGPost:
             self.media_urls = [self.image_url] if self.image_url else []
 
 
+
+_tg_parse_lock = asyncio.Lock()
+_entity_cache: dict = {}
+# Глобальный кеш entities — переживает пересоздание парсера
+
 class TelegramParser:
     """Парсер Telegram каналов через user account с поддержкой скачивания фото"""
 
@@ -303,23 +308,30 @@ class TelegramParser:
 
     async def _get_entity_cached(self, username: str):
         """Получает entity с кешированием — избегаем лишних ResolveUsername запросов."""
-        if username in self._entity_cache:
-            return self._entity_cache[username]
-        entity = await self.client.get_entity(username)
-        self._entity_cache[username] = entity
+        global _entity_cache
+        cache_key = username.strip().lstrip('@')
+        if cache_key in _entity_cache:
+            return _entity_cache[cache_key]
+        if username.startswith('+') or 'joinchat' in username:
+            invite_hash = username.split('/')[-1].lstrip('+')
+            entity = await self.client.get_entity(f"https://t.me/joinchat/{invite_hash}")
+        else:
+            entity = await self.client.get_entity(username)
+        _entity_cache[cache_key] = entity
         return entity
 
     async def parse_multiple_channels(self, channels: List[str], posts_per_channel: int = 10) -> List[TGPost]:
-        all_posts = []
-        for channel in channels:
-            try:
-                posts = await self.get_channel_posts(channel, posts_per_channel)
-                all_posts.extend(posts)
-                print(f"✓ {channel}: {len(posts)} постов")
-                await asyncio.sleep(0.5)
-            except Exception as e:
-                print(f"❌ Ошибка парсинга {channel}: {e}")
-        return all_posts
+        async with _tg_parse_lock:
+            all_posts = []
+            for channel in channels:
+                try:
+                    posts = await self.get_channel_posts(channel, posts_per_channel)
+                    all_posts.extend(posts)
+                    print(f"✓ {channel}: {len(posts)} постов")
+                    await asyncio.sleep(0.5)
+                except Exception as e:
+                    print(f"❌ Ошибка парсинга {channel}: {e}")
+            return all_posts
 
     async def join_channel(self, channel: str) -> bool:
         """Подписаться на канал (для приватных)"""
