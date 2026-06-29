@@ -47,6 +47,7 @@ class TelegramParser:
         self.phone = phone
         self.session_name = session_name
         self.media_path = media_path
+        self._entity_cache: dict = {}  # кеш entities
         self.client: Optional[TelegramClient] = None
         
         # Создаём папку для медиа
