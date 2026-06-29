@@ -129,7 +129,11 @@ async def ap_rebuild(callback: CallbackQuery):
 
     # Обновляем меню
     text, kb = build_city_menu(folder_id, folder_name)
-    await callback.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
+    try:
+        await callback.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
+    except Exception as e:
+        if 'message is not modified' not in str(e):
+            raise
 
 
 @router.callback_query(F.data == "plan_today")
