@@ -93,9 +93,9 @@ class TelegramParser:
             # Получаем entity канала
             if username.startswith("joinchat/"):
                 invite_hash = username.split("/")[-1]
-                entity = await self.client.get_entity(f"https://t.me/joinchat/{invite_hash}")
+                entity = await self.client.get_entity(f"https://t.me/joinchat/{invite_hash}")  # invite links не кешируем
             else:
-                entity = await self.client.get_entity(username)
+                entity = await self._get_entity_cached(username)
 
             if not isinstance(entity, Channel):
                 print(f"⚠️ {channel} — не канал")
@@ -300,6 +300,14 @@ class TelegramParser:
             print(f"Ошибка конвертации альбома: {e}")
             return None
 
+    async def _get_entity_cached(self, username: str):
+        """Получает entity с кешированием — избегаем лишних ResolveUsername запросов."""
+        if username in self._entity_cache:
+            return self._entity_cache[username]
+        entity = await self.client.get_entity(username)
+        self._entity_cache[username] = entity
+        return entity
+
     async def parse_multiple_channels(self, channels: List[str], posts_per_channel: int = 10) -> List[TGPost]:
         all_posts = []
         for channel in channels:
@@ -309,7 +317,7 @@ class TelegramParser:
                 print(f"✓ {channel}: {len(posts)} постов")
                 await asyncio.sleep(0.5)
             except Exception as e:
-                print(f"✗ {channel}: ошибка - {e}")
+                print(f"❌ Ошибка парсинга {channel}: {e}")
         return all_posts
 
     async def join_channel(self, channel: str) -> bool:
